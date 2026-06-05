@@ -2,7 +2,7 @@ services:
   - type: web
     name: kitchen-match
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     autoDeploy: true
     envVars:
@@ -11,8 +11,6 @@ services:
       - key: KITCHEN_PORT
         value: 8000
       - key: KITCHEN_DATA_DIR
-        value: /app/data
-    disk:
-      name: kitchen-data
-      mountPath: /app/data
-      sizeGB: 1
+        value: /tmp
+
+    
