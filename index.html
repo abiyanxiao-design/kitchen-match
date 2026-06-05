@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>今日厨房 MVP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-left"></div>
+    <div class="bg-orb bg-orb-right"></div>
+
+    <section class="auth-screen" id="auth-screen">
+      <div class="auth-card card">
+        <p class="section-kicker">今日厨房</p>
+        <h1 class="auth-title">先注册，再开始撞菜</h1>
+        <p class="auth-text">注册之后，你发的菜、照片和记录都会真的保存下来。</p>
+
+        <div class="auth-switch">
+          <button class="nav-chip active" id="show-login">登录</button>
+          <button class="nav-chip" id="show-register">注册</button>
+        </div>
+
+        <form class="auth-form active" id="login-form">
+          <input id="login-email" type="email" placeholder="邮箱" required />
+          <input id="login-password" type="password" placeholder="密码" required />
+          <button class="primary-button" type="submit">登录开始用</button>
+        </form>
+
+        <form class="auth-form" id="register-form">
+          <input id="register-name" type="text" placeholder="怎么称呼你" required />
+          <input id="register-email" type="email" placeholder="邮箱" required />
+          <input id="register-password" type="password" placeholder="密码" required />
+          <button class="primary-button" type="submit">注册并开始用</button>
+        </form>
+
+        <p class="auth-message" id="auth-message"></p>
+      </div>
+    </section>
+
+    <div class="mobile-topbar shell app-shell">
+      <div class="topbar-row">
+        <div>
+          <p class="topbar-label">今天撞菜</p>
+          <strong class="topbar-title">今晚吃什么</strong>
+        </div>
+        <div class="topbar-actions">
+          <div class="topbar-badge" id="updates-badge">0 人已更新</div>
+          <button class="ghost-link" id="logout-button">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="hero shell">
+      <div class="hero-copy">
+        <p class="eyebrow">Tonight In The Kitchen</p>
+        <h1 id="hero-title">今天做了什么？</h1>
+        <p class="hero-text">
+          写下菜名，马上看看今天和谁撞菜了。
+        </p>
+
+        <div class="hero-actions">
+          <button class="primary-button" data-jump="quick-post">我来试试</button>
+          <button class="secondary-button" data-jump="circle">看我的记录</button>
+        </div>
+
+        <ul class="hero-points">
+          <li id="hero-point-1">先写菜名</li>
+          <li id="hero-point-2">再看今天撞上谁</li>
+          <li id="hero-point-3">慢慢留下自己的记录</li>
+        </ul>
+      </div>
+
+      <aside class="hero-panel card">
+        <div class="panel-topline">
+          <span class="live-pill">今日撞菜</span>
+          <span class="capacity-pill" id="hero-capacity">今天已有 0 人发了晚饭</span>
+        </div>
+        <h2>怎么开始最简单</h2>
+        <div class="participant-stack" id="starter-stack"></div>
+        <div class="countdown-block">
+          <p>最简单的发法</p>
+          <div class="countdown" id="countdown">菜名 + 一句话</div>
+        </div>
+        <div class="mini-note">
+          <strong>不用复杂：</strong>
+          不用写食谱，不用拍得很好看，先说今天吃什么就行。
+        </div>
+      </aside>
+    </header>
+
+    <main class="shell app-shell">
+      <section class="nav-strip">
+        <button class="nav-chip active" data-view-target="feed">今天撞菜</button>
+        <button class="nav-chip" data-view-target="circle">我的记录</button>
+      </section>
+
+      <section class="view active" data-view="feed">
+        <article class="card quick-post-card" id="quick-post">
+          <p class="section-kicker">第一步</p>
+          <h2>先写今天做了什么</h2>
+          <div class="quick-post-form">
+            <input id="dish-name" type="text" placeholder="比如：排骨汤 / 番茄鸡蛋 / 炒青菜" />
+            <div class="photo-upload-box">
+              <label class="upload-button" for="dish-photo">加一张照片</label>
+              <input id="dish-photo" type="file" accept="image/*" hidden />
+              <div class="photo-preview empty" id="photo-preview">照片可选，不传也可以</div>
+            </div>
+            <textarea
+              id="dish-note"
+              rows="3"
+              placeholder="可选：比如 今天这个汤炖得特别香"
+            ></textarea>
+            <div class="composer-row">
+              <button class="primary-button" id="post-card">看看今天和谁撞菜</button>
+              <button class="secondary-button" id="fill-demo">先填个例子</button>
+            </div>
+          </div>
+        </article>
+
+        <div class="feed-layout">
+          <div class="feed-column">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">第二步</p>
+                <h2>今天和你撞上的人</h2>
+              </div>
+            </div>
+            <div class="match-group">
+              <div class="match-group-head">
+                <h3>撞上同一道菜</h3>
+                <span class="group-count" id="same-dish-count"></span>
+              </div>
+              <div class="feed-list" id="same-dish-list"></div>
+            </div>
+            <div class="match-group">
+              <div class="match-group-head">
+                <h3>撞上同一类菜</h3>
+                <span class="group-count" id="same-style-count"></span>
+              </div>
+              <div class="feed-list" id="same-style-list"></div>
+            </div>
+          </div>
+
+          <aside class="feed-side">
+            <article class="card side-panel">
+              <p class="section-kicker">第三步</p>
+              <h3>这周最常撞上的人</h3>
+              <div class="room-list" id="weekly-match-list"></div>
+            </article>
+
+            <article class="card side-panel">
+              <p class="section-kicker">这个月</p>
+              <h3>你的厨房大概是什么样</h3>
+              <div class="topic-list" id="monthly-profile-list"></div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="circle">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">我的记录</p>
+            <h2>这里会留下你最近做过的菜</h2>
+          </div>
+        </div>
+
+        <div class="profile-layout">
+          <article class="card kitchen-profile-card">
+            <div class="kitchen-profile-top">
+              <div class="profile-avatar">周</div>
+              <div>
+                <p class="section-kicker">周叔的厨房</p>
+                <h3>最近常做家常汤菜</h3>
+                <p class="profile-note">
+                  一顿一顿记下来，以后回头看，会看到自己最近常做什么、谁总和你撞菜。
+                </p>
+              </div>
+            </div>
+            <div class="profile-stats" id="profile-stats"></div>
+          </article>
+
+          <article class="card kitchen-profile-card">
+            <div class="section-head compact-head">
+              <div>
+                <p class="section-kicker">长期记录</p>
+                <h3>最近做过什么</h3>
+              </div>
+              <button class="secondary-button" data-jump="quick-post">再记一顿</button>
+            </div>
+            <div class="timeline-list" id="timeline-list"></div>
+          </article>
+        </div>
+
+        <div class="grid-two">
+          <article class="card relationship-card">
+            <h3>最近常和你撞上的人</h3>
+            <div class="relationship-list" id="relationship-list"></div>
+          </article>
+
+          <article class="card relationship-card">
+            <h3>你可能想点进去看看的人</h3>
+            <div class="next-up-list" id="next-up-list"></div>
+          </article>
+        </div>
+
+        <article class="card affinity-card">
+          <h3>这个月你的厨房画像</h3>
+          <div class="affinity-grid" id="affinity-grid"></div>
+        </article>
+      </section>
+    </main>
+
+    <nav class="bottom-tabbar">
+      <button class="tabbar-item active" data-view-target="feed">
+        <span class="tabbar-icon">🍲</span>
+        <span>撞菜</span>
+      </button>
+      <button class="tabbar-item" data-jump="quick-post">
+        <span class="tabbar-icon">＋</span>
+        <span>发一顿</span>
+      </button>
+      <button class="tabbar-item" data-view-target="circle">
+        <span class="tabbar-icon">📒</span>
+        <span>记录</span>
+      </button>
+    </nav>
+
+    <template id="person-card-template">
+      <div class="person-card">
+        <div class="avatar"></div>
+        <div>
+          <strong class="name"></strong>
+          <p class="meta"></p>
+        </div>
+      </div>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
