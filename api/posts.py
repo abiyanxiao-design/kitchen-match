@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.post("/")
-@app.post("/api/posts")
-def posts():
+@app.route("/", defaults={"_path": ""}, methods=["POST"])
+@app.route("/<path:_path>", methods=["POST"])
+def posts(_path):
     return create_post_handler()

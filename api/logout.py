@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.post("/")
-@app.post("/api/logout")
-def logout():
+@app.route("/", defaults={"_path": ""}, methods=["POST"])
+@app.route("/<path:_path>", methods=["POST"])
+def logout(_path):
     return logout_handler()

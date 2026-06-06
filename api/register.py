@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.post("/")
-@app.post("/api/register")
-def register():
+@app.route("/", defaults={"_path": ""}, methods=["POST"])
+@app.route("/<path:_path>", methods=["POST"])
+def register(_path):
     return register_handler()

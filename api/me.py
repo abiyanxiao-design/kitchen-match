@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.get("/")
-@app.get("/api/me")
-def me():
+@app.route("/", defaults={"_path": ""}, methods=["GET"])
+@app.route("/<path:_path>", methods=["GET"])
+def me(_path):
     return me_handler()

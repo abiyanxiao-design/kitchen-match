@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.get("/")
-@app.get("/api/dashboard")
-def dashboard():
+@app.route("/", defaults={"_path": ""}, methods=["GET"])
+@app.route("/<path:_path>", methods=["GET"])
+def dashboard(_path):
     return dashboard_handler()

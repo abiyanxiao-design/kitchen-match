@@ -7,7 +7,7 @@ app = Flask(__name__)
 application = app
 
 
-@app.post("/")
-@app.post("/api/login")
-def login():
+@app.route("/", defaults={"_path": ""}, methods=["POST"])
+@app.route("/<path:_path>", methods=["POST"])
+def login(_path):
     return login_handler()
