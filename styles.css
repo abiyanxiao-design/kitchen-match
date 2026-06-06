@@ -583,6 +583,32 @@ textarea {
   line-height: 1.7;
 }
 
+.footprint-favorites {
+  margin-top: 1rem;
+}
+
+.footprint-chip-row {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.footprint-chip {
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.88);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.footprint-favorite-line,
+.footprint-empty {
+  margin: 0.72rem 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 .compact-head {
   margin-bottom: 1rem;
 }

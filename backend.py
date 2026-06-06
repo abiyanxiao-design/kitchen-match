@@ -582,8 +582,10 @@ def build_profile(connection, user):
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
 
     categories = {}
+    dishes = {}
     for row in user_posts:
         categories[row["category"]] = categories.get(row["category"], 0) + 1
+        dishes[row["dish"]] = dishes.get(row["dish"], 0) + 1
     top_category = max(categories.items(), key=lambda item: item[1])[0] if categories else "家常晚饭"
 
     week_ago = recent_local_day_range(7)
@@ -683,8 +685,25 @@ def build_profile(connection, user):
         },
     ]
 
+    top_dishes = [
+        {"dish": dish, "count": count}
+        for dish, count in sorted(dishes.items(), key=lambda item: (-item[1], item[0]))[:3]
+    ]
+    top_categories = [
+        {"category": category, "count": count}
+        for category, count in sorted(categories.items(), key=lambda item: (-item[1], item[0]))[:3]
+    ]
+    profile_stats = {
+        "total_posts": len(user_posts),
+        "week_posts": weekly_posts_count,
+        "month_posts": monthly_posts_count,
+        "top_dishes": top_dishes,
+        "top_categories": top_categories,
+    }
+
     return {
         "stats": stats,
+        "profile_stats": profile_stats,
         "timeline": timeline,
         "relationships": relationships,
         "next_up": next_up,

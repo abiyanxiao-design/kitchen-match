@@ -45,6 +45,9 @@ const nextUpList = document.getElementById("next-up-list");
 const affinityGrid = document.getElementById("affinity-grid");
 const profileStats = document.getElementById("profile-stats");
 const timelineList = document.getElementById("timeline-list");
+const footprintTitle = document.getElementById("footprint-title");
+const footprintNote = document.getElementById("footprint-note");
+const footprintFavorites = document.getElementById("footprint-favorites");
 
 const countdown = document.getElementById("countdown");
 const dishName = document.getElementById("dish-name");
@@ -435,6 +438,34 @@ function renderProfile() {
   const data = state.profile;
   if (!data) {
     return;
+  }
+
+  const profileStatsData = data.profile_stats || {
+    total_posts: 0,
+    week_posts: 0,
+    month_posts: 0,
+    top_dishes: [],
+    top_categories: [],
+  };
+
+  if (!profileStatsData.total_posts) {
+    footprintTitle.textContent = "你的第一顿饭还在等你写下。";
+    footprintNote.textContent = "从第一顿开始，慢慢会看到自己最常做什么、最近更爱吃什么。";
+    footprintFavorites.innerHTML = `<p class="footprint-empty">先记下一顿，做饭足迹就会从这里开始。</p>`;
+  } else {
+    footprintTitle.textContent = `你已经认真吃了 ${profileStatsData.total_posts} 顿饭。`;
+    footprintNote.textContent = `这周记下了 ${profileStatsData.week_posts} 顿，本月已经留下 ${profileStatsData.month_posts} 顿。`;
+    const favoriteDishes = profileStatsData.top_dishes.length
+      ? profileStatsData.top_dishes.map((item) => `${item.dish} ×${item.count}`).join("、")
+      : "还在等你的招牌菜出现";
+    footprintFavorites.innerHTML = `
+      <div class="footprint-chip-row">
+        <span class="footprint-chip">总记录 ${profileStatsData.total_posts} 顿</span>
+        <span class="footprint-chip">本周 ${profileStatsData.week_posts} 顿</span>
+        <span class="footprint-chip">本月 ${profileStatsData.month_posts} 顿</span>
+      </div>
+      <p class="footprint-favorite-line">最常做：${escapeHtml(favoriteDishes)}</p>
+    `;
   }
 
   profileStats.innerHTML = "";
