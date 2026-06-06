@@ -198,30 +198,42 @@ textarea {
 
 .home-install-hint {
   position: fixed;
-  left: 12px;
-  right: 12px;
+  left: 50%;
+  width: min(90vw, 420px);
+  right: auto;
   bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
   z-index: 99999;
   display: flex;
+  flex-direction: column;
   opacity: 1;
   pointer-events: auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.6rem;
   padding: 0.9rem 1rem;
   border-radius: 20px;
   background: rgba(255, 249, 241, 0.98);
   border: 1px solid rgba(112, 78, 43, 0.12);
   box-shadow: 0 20px 44px rgba(28, 20, 14, 0.18);
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  white-space: normal;
 }
 
 .home-install-hint[hidden] {
   display: none !important;
 }
 
+.home-install-hint-content,
 .home-install-hint__copy {
   min-width: 0;
-  flex: 1;
+  width: 100%;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  transform: none;
 }
 
 .home-install-hint__title {
@@ -232,17 +244,28 @@ textarea {
   font-weight: 700;
 }
 
+.home-install-hint-text,
 .home-install-hint__intro {
   margin: 0.3rem 0 0;
   color: var(--muted);
   line-height: 1.38;
   font-size: 0.9rem;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  white-space: normal;
 }
 
+.home-install-hint-steps,
 .home-install-hint__steps {
   margin-top: 0.42rem;
   display: grid;
   gap: 0.2rem;
+  width: 100%;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  transform: none;
 }
 
 .home-install-hint__step-text {
@@ -250,6 +273,11 @@ textarea {
   color: var(--ink);
   line-height: 1.28;
   font-size: 0.92rem;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  white-space: normal;
 }
 
 .home-install-hint__emoji {
@@ -261,6 +289,9 @@ textarea {
   align-items: center;
   flex-shrink: 0;
   align-self: flex-end;
+  width: 100%;
+  justify-content: flex-end;
+  transform: none;
 }
 
 .topbar-row {
@@ -1700,6 +1731,7 @@ body.guest-mode [data-view="circle"] .section-head {
     padding: 0.72rem 0.8rem;
     gap: 0.62rem;
     align-items: flex-start;
+    width: min(88vw, 420px);
   }
 
   .home-install-hint__title {
@@ -1720,7 +1752,6 @@ body.guest-mode [data-view="circle"] .section-head {
   }
 
   .home-install-hint__actions {
-    width: 100%;
     justify-content: flex-end;
   }
 

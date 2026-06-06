@@ -136,10 +136,10 @@ function ensureInstallBanner() {
   installBanner.className = "home-install-hint";
   installBanner.hidden = true;
   installBanner.innerHTML = `
-    <div class="home-install-hint__copy">
+    <div class="home-install-hint-content home-install-hint__copy">
       <p class="home-install-hint__title">📱 把 Kitchen Match 放到手机桌面</p>
-      <p class="home-install-hint__intro">以后不用再找网址，点一下桌面图标就能打开。</p>
-      <div class="home-install-hint__steps">
+      <p class="home-install-hint-text home-install-hint__intro">以后不用再找网址，点一下桌面图标就能打开。</p>
+      <div class="home-install-hint-steps home-install-hint__steps">
         <p class="home-install-hint__step-text">① 点击下方分享按钮 <span class="home-install-hint__emoji">↗️</span></p>
         <p class="home-install-hint__step-text">② 选择 <span class="home-install-hint__emoji">🏠</span> 添加到主屏幕</p>
         <p class="home-install-hint__step-text">③ 完成</p>
