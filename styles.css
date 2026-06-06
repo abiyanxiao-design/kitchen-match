@@ -19,11 +19,15 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
   font-family: "Outfit", "PingFang SC", "Microsoft YaHei", sans-serif;
   background:
     radial-gradient(circle at top left, rgba(245, 191, 88, 0.2), transparent 28%),
@@ -78,6 +82,7 @@ textarea {
 
 .app-shell {
   width: min(460px, calc(100% - 1rem));
+  max-width: 100%;
   margin-bottom: 3rem;
 }
 
@@ -906,6 +911,7 @@ body.auth-only .auth-screen {
 
 .feed-card {
   padding: 1.2rem;
+  overflow: hidden;
 }
 
 .feed-topline,
@@ -919,16 +925,29 @@ body.auth-only .auth-screen {
 
 .feed-photo {
   margin: 1rem 0 0.9rem;
+  width: 100%;
+  max-width: 100%;
   min-height: 140px;
+  max-height: 220px;
   border-radius: 24px;
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(255, 219, 153, 0.46), transparent 28%),
     linear-gradient(135deg, rgba(189, 95, 45, 0.16), rgba(71, 107, 74, 0.14));
   font-family: "Noto Serif SC", serif;
   font-size: 1.35rem;
+}
+
+.feed-photo img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 220px;
+  object-fit: cover;
 }
 
 .feed-note {
@@ -1011,6 +1030,7 @@ body.auth-only .auth-screen {
   .shell,
   .app-shell {
     width: min(100% - 0.75rem, 460px);
+    max-width: 100%;
   }
 
   .card {
@@ -1029,6 +1049,12 @@ body.auth-only .auth-screen {
   .feed-topline,
   .feed-actions {
     align-items: flex-start;
+  }
+
+  .feed-card,
+  .feed-photo,
+  .photo-preview {
+    max-width: 100%;
   }
 
 }
