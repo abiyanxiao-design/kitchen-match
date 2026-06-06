@@ -54,8 +54,11 @@ const dishName = document.getElementById("dish-name");
 const dishNote = document.getElementById("dish-note");
 const dishPhoto = document.getElementById("dish-photo");
 const photoPreview = document.getElementById("photo-preview");
-const MAX_UPLOAD_IMAGE_EDGE = 1600;
-const JPEG_UPLOAD_QUALITY = 0.8;
+const MAX_UPLOAD_IMAGE_EDGE = 1200;
+const JPEG_UPLOAD_QUALITY = 0.72;
+const SECOND_PASS_MAX_EDGE = 1000;
+const SECOND_PASS_JPEG_QUALITY = 0.65;
+const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -183,6 +186,15 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function dataUrlByteLength(dataUrl) {
+  const [, base64 = ""] = String(dataUrl || "").split(",", 2);
+  if (!base64) {
+    return 0;
+  }
+  const padding = (base64.match(/=*$/) || [""])[0].length;
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
+
 function loadImageElement(dataUrl) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -201,7 +213,10 @@ function canvasToJpegDataUrl(canvas, quality = JPEG_UPLOAD_QUALITY) {
           return;
         }
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+        reader.onload = () => resolve({
+          dataUrl: reader.result,
+          size: blob.size,
+        });
         reader.onerror = () => reject(new Error("图片压缩失败，请稍后再试"));
         reader.readAsDataURL(blob);
       },
@@ -211,16 +226,14 @@ function canvasToJpegDataUrl(canvas, quality = JPEG_UPLOAD_QUALITY) {
   });
 }
 
-async function compressImageFile(file) {
-  const originalDataUrl = await readFileAsDataUrl(file);
-  const image = await loadImageElement(originalDataUrl);
+async function renderCompressedImage(image, maxEdge, quality) {
   const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
 
   if (!longestEdge) {
-    return originalDataUrl;
+    throw new Error("图片处理失败，请换一张照片");
   }
 
-  const scale = longestEdge > MAX_UPLOAD_IMAGE_EDGE ? MAX_UPLOAD_IMAGE_EDGE / longestEdge : 1;
+  const scale = longestEdge > maxEdge ? maxEdge / longestEdge : 1;
   const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale));
   const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale));
 
@@ -229,12 +242,32 @@ async function compressImageFile(file) {
   canvas.height = targetHeight;
   const context = canvas.getContext("2d");
   if (!context) {
-    return originalDataUrl;
+    throw new Error("图片处理失败，请换一张照片");
   }
 
   context.drawImage(image, 0, 0, targetWidth, targetHeight);
-  const compressedDataUrl = await canvasToJpegDataUrl(canvas);
-  return typeof compressedDataUrl === "string" ? compressedDataUrl : originalDataUrl;
+  return canvasToJpegDataUrl(canvas, quality);
+}
+
+async function compressImageFile(file) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageElement(originalDataUrl);
+
+  const firstPass = await renderCompressedImage(image, MAX_UPLOAD_IMAGE_EDGE, JPEG_UPLOAD_QUALITY);
+  if (typeof firstPass.dataUrl !== "string") {
+    throw new Error("图片处理失败，请换一张照片");
+  }
+
+  if (firstPass.size <= MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS) {
+    return firstPass;
+  }
+
+  const secondPassImage = await loadImageElement(firstPass.dataUrl);
+  const secondPass = await renderCompressedImage(secondPassImage, SECOND_PASS_MAX_EDGE, SECOND_PASS_JPEG_QUALITY);
+  if (typeof secondPass.dataUrl !== "string") {
+    throw new Error("图片处理失败，请换一张照片");
+  }
+  return secondPass;
 }
 
 function getStarterDish(item) {
@@ -666,24 +699,21 @@ async function updatePhotoPreview(file) {
   photoPreview.innerHTML = "正在准备照片...";
 
   try {
-    const preparedDataUrl = await compressImageFile(file);
-    state.photoDataUrl = preparedDataUrl;
+    console.log(`[Kitchen Match] original photo size: ${file.size} bytes`);
+    const compressed = await compressImageFile(file);
+    console.log(`[Kitchen Match] compressed photo size: ${compressed.size} bytes`);
+    state.photoDataUrl = compressed.dataUrl;
     photoPreview.classList.remove("empty");
-    photoPreview.innerHTML = `<img src="${preparedDataUrl}" alt="你上传的菜图预览" />`;
-  } catch (_error) {
-    const originalDataUrl = await readFileAsDataUrl(file).catch(() => null);
-    if (originalDataUrl) {
-      state.photoDataUrl = originalDataUrl;
-      photoPreview.classList.remove("empty");
-      photoPreview.innerHTML = `<img src="${originalDataUrl}" alt="你上传的菜图预览" />`;
-      return;
+    photoPreview.innerHTML = `<img src="${compressed.dataUrl}" alt="你上传的菜图预览" />`;
+    if (dataUrlByteLength(compressed.dataUrl) > MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS) {
+      console.warn("[Kitchen Match] compressed photo is still larger than target threshold");
     }
-
+  } catch (_error) {
     state.photoDataUrl = null;
     dishPhoto.value = "";
     photoPreview.classList.add("empty");
     photoPreview.innerHTML = "照片可选，不传也可以";
-    alert("图片处理失败，请换一张再试");
+    alert("图片处理失败，请换一张照片");
   }
 }
 
