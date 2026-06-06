@@ -845,6 +845,84 @@ textarea {
   gap: 1rem;
 }
 
+.community-feed-card {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.78rem;
+}
+
+.community-feed-empty {
+  grid-template-columns: 1fr;
+}
+
+.community-feed-media {
+  width: 92px;
+  height: 92px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at top left, rgba(255, 219, 153, 0.38), transparent 36%),
+    rgba(255, 252, 246, 0.96);
+}
+
+.community-feed-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.community-feed-media-empty {
+  display: grid;
+  place-items: center;
+  color: var(--accent-deep);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.community-feed-body {
+  min-width: 0;
+}
+
+.community-feed-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.community-feed-meta {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.community-feed-dish {
+  margin: 0.28rem 0 0;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1.08rem;
+  line-height: 1.18;
+}
+
+.community-feed-subline {
+  margin-top: 0.45rem;
+}
+
+.community-feed-note {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hot-dishes-list {
   display: grid;
   gap: 0.7rem;
@@ -1313,6 +1391,32 @@ body.guest-mode [data-view="circle"] .section-head {
     grid-template-columns: 56px 1fr;
     gap: 0.7rem;
     padding: 0.72rem 0.78rem;
+  }
+
+  .community-feed-card {
+    grid-template-columns: 72px 1fr;
+    gap: 0.68rem;
+    padding: 0.68rem;
+  }
+
+  .community-feed-media {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+  }
+
+  .community-feed-dish {
+    font-size: 0.98rem;
+  }
+
+  .community-feed-meta {
+    font-size: 0.72rem;
+  }
+
+  .community-feed-note {
+    margin-top: 0.42rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
   }
 
   .hot-dish-thumb {

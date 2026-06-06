@@ -278,7 +278,7 @@ function renderPublicFeedCards(target, list, emptyText) {
   target.innerHTML = "";
   if (!list.length) {
     const card = document.createElement("article");
-    card.className = "feed-card card";
+    card.className = "community-feed-card community-feed-empty card";
     card.innerHTML = `<p class="feed-note">${escapeHtml(emptyText)}</p>`;
     target.appendChild(card);
     return;
@@ -286,22 +286,25 @@ function renderPublicFeedCards(target, list, emptyText) {
 
   list.forEach((post) => {
     const card = document.createElement("article");
-    card.className = "feed-card card";
+    card.className = "community-feed-card card";
     const imageMarkup = post.photo_public_url
-      ? `<img src="${post.photo_public_url}" alt="${escapeHtml(post.dish)}" />`
-      : `<span>${escapeHtml(post.dish)}</span>`;
+      ? `<div class="community-feed-media"><img src="${post.photo_public_url}" alt="${escapeHtml(post.dish)}" /></div>`
+      : `<div class="community-feed-media community-feed-media-empty"><span>${escapeHtml(post.dish)}</span></div>`;
+    const noteMarkup = post.note
+      ? `<p class="community-feed-note">${escapeHtml(post.note)}</p>`
+      : "";
     card.innerHTML = `
-      <div class="feed-topline">
-        <div>
-          <p class="section-kicker">${escapeHtml(post.display_name)}</p>
-          <h3>${escapeHtml(post.dish)}</h3>
+      ${imageMarkup}
+      <div class="community-feed-body">
+        <div class="community-feed-meta-row">
+          <span class="community-feed-meta">${escapeHtml(post.display_name)}</span>
+          <span class="community-feed-meta">${escapeHtml(formatCreatedAt(post.created_at))}</span>
         </div>
-        <span class="ghost-pill">${escapeHtml(post.category)}</span>
-      </div>
-      <div class="feed-photo">${imageMarkup}</div>
-      <p class="feed-note">${escapeHtml(post.note || "今天也做了这一顿。")}</p>
-      <div class="comment-list">
-        <div class="comment-item">${escapeHtml(formatCreatedAt(post.created_at))}</div>
+        <h3 class="community-feed-dish">${escapeHtml(post.dish)}</h3>
+        <div class="community-feed-subline">
+          <span class="ghost-pill">${escapeHtml(post.category)}</span>
+        </div>
+        ${noteMarkup}
       </div>
     `;
     target.appendChild(card);
@@ -361,7 +364,7 @@ function renderPublicHome() {
   renderStarterStack(data.starters || []);
   renderHotDishes(data.today_hot_dishes || []);
 
-  sameDishHeading.textContent = "大家今晚吃了什么";
+  sameDishHeading.textContent = "🥘 大家今晚吃了什么";
   sameStyleHeading.textContent = "最近大家在做什么";
   sameDishCount.textContent = `${(data.today_posts || []).length} 道`;
   sameStyleCount.textContent = `${(data.recent_posts || []).length} 道`;
