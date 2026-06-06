@@ -69,7 +69,7 @@ const sameStyleBlock = sameStyleList.closest(".inspiration-block");
 
 let toastTimerId = null;
 let deferredInstallPrompt = null;
-const INSTALL_BANNER_DISMISSED_KEY = "kitchen-match-install-banner-dismissed";
+const INSTALL_BANNER_DISMISSED_KEY = "kitchen_home_hint_v2_dismissed";
 let installBannerDismissed = false;
 
 function escapeHtml(value) {
@@ -124,11 +124,9 @@ function isStandaloneMode() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
 }
 
-function isIosSafari() {
+function isMobileBrowser() {
   const ua = window.navigator.userAgent || "";
-  const isIos = /iphone|ipad|ipod/i.test(ua);
-  const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
-  return isIos && isSafari;
+  return /android|iphone|ipad|ipod|mobile/i.test(ua);
 }
 
 function hideInstallBanner() {
@@ -158,28 +156,24 @@ function dismissInstallBanner(remember = false) {
 }
 
 function maybeShowInstallBanner() {
-  if (!installBanner || installBannerDismissed || isStandaloneMode()) {
+  if (!installBanner || installBannerDismissed || isStandaloneMode() || !isMobileBrowser()) {
     hideInstallBanner();
     return;
   }
 
   if (deferredInstallPrompt) {
-    installBannerText.textContent = "把 Kitchen Match 放到主屏幕，打开会更像一个真正的小应用。";
-    installButton.hidden = false;
-    dismissInstallButton.textContent = "稍后";
-    installBanner.hidden = false;
-    return;
-  }
-
-  if (isIosSafari()) {
     installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
-    installButton.hidden = true;
+    installButton.hidden = false;
+    installButton.textContent = "安装 Kitchen Match";
     dismissInstallButton.textContent = "知道了";
     installBanner.hidden = false;
     return;
   }
 
-  hideInstallBanner();
+  installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
+  installButton.hidden = true;
+  dismissInstallButton.textContent = "知道了";
+  installBanner.hidden = false;
 }
 
 async function registerServiceWorker() {
@@ -1057,7 +1051,7 @@ showRegisterButton.addEventListener("click", () => setAuthMode("register"));
 closeAuthButton.addEventListener("click", hideAuthScreen);
 if (dismissInstallButton) {
   dismissInstallButton.addEventListener("click", () => {
-    dismissInstallBanner(isIosSafari());
+    dismissInstallBanner(true);
   });
 }
 if (installButton) {
