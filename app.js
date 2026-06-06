@@ -32,6 +32,7 @@ const jumpButtons = document.querySelectorAll("[data-jump]");
 
 const sameDishList = document.getElementById("same-dish-list");
 const sameStyleList = document.getElementById("same-style-list");
+const hotDishesList = document.getElementById("hot-dishes-list");
 const weeklyMatchList = document.getElementById("weekly-match-list");
 const monthlyProfileList = document.getElementById("monthly-profile-list");
 const sameDishCount = document.getElementById("same-dish-count");
@@ -307,6 +308,41 @@ function renderPublicFeedCards(target, list, emptyText) {
   });
 }
 
+function renderHotDishes(list) {
+  hotDishesList.innerHTML = "";
+  if (!list.length) {
+    const card = document.createElement("article");
+    card.className = "hot-dish-card hot-dish-empty card";
+    card.innerHTML = `<p class="feed-note">今天还在等第一道菜出现。</p>`;
+    hotDishesList.appendChild(card);
+    return;
+  }
+
+  list.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "hot-dish-card card";
+    const rank = ["🥇", "🥈", "🥉"][index] || "🍽️";
+    const names = (item.user_names || []).join("、");
+    const moreText = item.remaining_user_count ? ` 等 ${item.remaining_user_count} 人` : "";
+    const thumbMarkup = item.thumbnail
+      ? `<div class="hot-dish-thumb"><img src="${escapeHtml(item.thumbnail)}" alt="${escapeHtml(item.dish)}" /></div>`
+      : `<div class="hot-dish-thumb hot-dish-thumb-empty">${rank}</div>`;
+
+    card.innerHTML = `
+      ${thumbMarkup}
+      <div class="hot-dish-body">
+        <div class="hot-dish-title-row">
+          <strong>${rank} ${escapeHtml(item.dish)}</strong>
+          <span class="ghost-pill">${escapeHtml(item.category)}</span>
+        </div>
+        <p class="hot-dish-meta">${escapeHtml(`${item.count} 人今天做了`)}</p>
+        <p class="hot-dish-users">${escapeHtml(names)}${moreText ? `<span>${escapeHtml(moreText)}</span>` : ""}</p>
+      </div>
+    `;
+    hotDishesList.appendChild(card);
+  });
+}
+
 function renderPublicHome() {
   const data = state.publicFeed;
   if (!data) {
@@ -323,6 +359,7 @@ function renderPublicHome() {
   heroPoint2.textContent = data.hero_points[1] || "想发一顿时再登录";
   heroPoint3.textContent = data.hero_points[2] || "撞菜和记录会在登录后开始";
   renderStarterStack(data.starters || []);
+  renderHotDishes(data.today_hot_dishes || []);
 
   sameDishHeading.textContent = "大家今晚吃了什么";
   sameStyleHeading.textContent = "最近大家在做什么";
@@ -363,6 +400,7 @@ function renderDashboard() {
   heroPoint2.textContent = data.hero_points[1] || "再看今天撞上谁";
   heroPoint3.textContent = data.hero_points[2] || "慢慢留下自己的记录";
   renderStarterStack(data.starters);
+  renderHotDishes(data.today_hot_dishes || []);
   sameDishHeading.textContent = "撞上同一道菜";
   sameStyleHeading.textContent = "撞上同一类菜";
 

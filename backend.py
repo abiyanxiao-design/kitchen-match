@@ -349,6 +349,70 @@ def serialize_public_post(row):
     }
 
 
+def build_today_hot_dishes(posts):
+    today = now_local().date()
+    today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
+    grouped = defaultdict(list)
+    for row in today_posts:
+        grouped[normalize_text(row["dish"])].append(row)
+
+    hot_dishes = []
+    for _, group_rows in grouped.items():
+        sorted_rows = sorted(group_rows, key=lambda row: coerce_datetime(row.get("created_at")) or now_utc(), reverse=True)
+        display_names = [row["display_name"] for row in sorted_rows]
+        unique_names = []
+        for name in display_names:
+            if name not in unique_names:
+                unique_names.append(name)
+
+        thumbnail = next((row.get("photo_public_url") for row in sorted_rows if row.get("photo_public_url")), None)
+        hot_dishes.append({
+            "dish": sorted_rows[0]["dish"],
+            "category": sorted_rows[0]["category"],
+            "count": len(sorted_rows),
+            "user_names": unique_names[:3],
+            "remaining_user_count": max(0, len(unique_names) - 3),
+            "thumbnail": thumbnail,
+        })
+
+    hot_dishes.sort(key=lambda item: (-item["count"], item["dish"]))
+    return hot_dishes[:5]
+
+
+def build_grouped_matches(rows, audience, key_field, label_field, current_lookup=None):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row[key_field]].append(row)
+
+    groups = []
+    for group_key, group_rows in grouped.items():
+        sorted_rows = sorted(group_rows, key=lambda row: coerce_datetime(row.get("created_at")) or now_utc(), reverse=True)
+        display_names = [row["display_name"] for row in sorted_rows]
+        thumbnails = [row.get("photo_public_url") for row in sorted_rows if row.get("photo_public_url")][:3]
+        preview_names = display_names[:5]
+        current_post = None
+        if current_lookup:
+            current_post = current_lookup(group_rows[0])
+
+        groups.append({
+            "group_key": group_key,
+            "group_type": audience,
+            "label": group_rows[0][label_field],
+            "count": len(sorted_rows),
+            "summary": f"你和 {len(sorted_rows)} 个人撞上了",
+            "user_names": preview_names,
+            "remaining_user_count": max(0, len(display_names) - len(preview_names)),
+            "thumbnails": thumbnails,
+            "posts": [
+                serialize_matched_post(row, audience, current_post or row)
+                for row in sorted_rows
+            ],
+        })
+
+    groups.sort(key=lambda group: group["count"], reverse=True)
+    return groups
+
+
 def build_public_feed(connection):
     posts = fetch_posts(connection)
     today = now_local().date()
@@ -367,6 +431,7 @@ def build_public_feed(connection):
         "updates_count": len(recent_posts),
         "today_posts": [serialize_public_post(row) for row in today_posts[:8]],
         "recent_posts": [serialize_public_post(row) for row in recent_posts],
+        "today_hot_dishes": build_today_hot_dishes(posts),
         "starters": starters,
         "hero_points": ["先看看大家做了什么", "想发一顿时再登录", "撞菜和记录会在登录后开始"],
     }
@@ -400,6 +465,7 @@ def build_dashboard(connection, user):
     matched_posts = []
     matched_users_map = {}
     matched_dishes_map = {}
+    grouped_matches = {"same_dish": [], "same_style": []}
 
     if current_user_posts:
         current_dish_keys = {normalize_text(row["dish"]) for row in current_user_posts}
@@ -427,12 +493,33 @@ def build_dashboard(connection, user):
             for row in same_dish_rows
         ]
         same_style_matches = [
-            serialize_matched_post(row, "同一类菜", next(
-                (post for post in current_user_posts if post["category"] == row["category"]),
-                current_user_posts[0],
-            ))
+            serialize_matched_post(
+                row,
+                "同一类菜",
+                next((post for post in current_user_posts if post["category"] == row["category"]), current_user_posts[0]),
+            )
             for row in same_style_rows
         ]
+
+        grouped_matches = {
+            "same_dish": build_grouped_matches(
+                same_dish_rows,
+                "同一道菜",
+                "dish",
+                "dish",
+                current_lookup=lambda row: current_post_by_dish.get(normalize_text(row["dish"])),
+            ),
+            "same_style": build_grouped_matches(
+                same_style_rows,
+                "同一类菜",
+                "category",
+                "category",
+                current_lookup=lambda row: next(
+                    (post for post in current_user_posts if post["category"] == row["category"]),
+                    current_user_posts[0],
+                ),
+            ),
+        }
 
         all_matched_rows = same_dish_rows + same_style_rows
         matched_posts = same_dish_matches + same_style_matches
@@ -475,6 +562,7 @@ def build_dashboard(connection, user):
         "starters": starters,
         "same_dish_matches": same_dish_matches,
         "same_style_matches": same_style_matches,
+        "today_hot_dishes": build_today_hot_dishes(posts),
         "weekly_matches": weekly_matches,
         "monthly_profiles": monthly_profiles,
         "hero_points": ["先写菜名", "再看今天撞上谁", "慢慢留下自己的记录"],
@@ -485,6 +573,7 @@ def build_dashboard(connection, user):
             for user_id, display_name in matched_users_map.items()
         ],
         "matched_dishes": list(matched_dishes_map.values()),
+        "grouped_matches": grouped_matches,
     }
 
 
