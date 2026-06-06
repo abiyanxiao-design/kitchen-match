@@ -5,17 +5,24 @@ import json
 import os
 import re
 import secrets
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from urllib import error, parse, request
+from zoneinfo import ZoneInfo
 
-import psycopg
 from flask import Flask, jsonify, request as flask_request, send_from_directory
-from psycopg.rows import dict_row
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except ModuleNotFoundError:  # pragma: no cover - local test environments may not have db deps installed
+    psycopg = None
+    dict_row = None
 
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 SESSION_COOKIE = "kitchen_session"
 BUCKET_NAME = os.environ.get("SUPABASE_STORAGE_BUCKET", "post-images")
+LOCAL_TIMEZONE = ZoneInfo(os.environ.get("KITCHEN_TIMEZONE", "America/Toronto"))
 
 
 app = Flask(__name__, static_folder=None)
@@ -23,6 +30,10 @@ app = Flask(__name__, static_folder=None)
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+
+def now_local():
+    return now_utc().astimezone(LOCAL_TIMEZONE)
 
 
 def now_iso():
@@ -49,8 +60,8 @@ def local_day_label(value):
     created_at = coerce_datetime(value)
     if not created_at:
         return "今天"
-    today = now_utc().date()
-    days = (today - created_at.date()).days
+    today = now_local().date()
+    days = (today - created_at.astimezone(LOCAL_TIMEZONE).date()).days
     if days <= 0:
         return "今天"
     if days == 1:
@@ -74,6 +85,8 @@ def infer_category(dish, note):
 
 
 def pg_connection():
+    if psycopg is None or dict_row is None:
+        raise RuntimeError("psycopg is not installed")
     return psycopg.connect(
         os.environ["SUPABASE_DB_URL"],
         row_factory=dict_row,
@@ -292,10 +305,45 @@ def fetch_posts(connection):
         return cursor.fetchall()
 
 
+def is_same_local_day(value, target_day=None):
+    created_at = coerce_datetime(value)
+    if not created_at:
+        return False
+    day = target_day or now_local().date()
+    return created_at.astimezone(LOCAL_TIMEZONE).date() == day
+
+
+def recent_local_day_range(days=7):
+    return now_local() - timedelta(days=days)
+
+
+def serialize_current_post(row):
+    return {
+        "id": row["id"],
+        "dish": row["dish"],
+        "note": row["note"] or "",
+        "category": row["category"],
+        "day": local_day_label(row.get("created_at")),
+        "photo_data_url": row.get("photo_public_url"),
+    }
+
+
+def serialize_matched_post(row, audience, current_post=None):
+    payload = serialize_match(row, audience, current_post or row)
+    payload["id"] = row["id"]
+    payload["user_id"] = row["user_id"]
+    payload["category"] = row["category"]
+    payload["created_day"] = local_day_label(row.get("created_at"))
+    return payload
+
+
 def build_dashboard(connection, user):
     posts = fetch_posts(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
-    current_post = user_posts[0] if user_posts else None
+    today = now_local().date()
+    current_user_posts = [row for row in user_posts if is_same_local_day(row.get("created_at"), today)]
+    if not current_user_posts and user_posts:
+        current_user_posts = user_posts[:1]
 
     starters = [
         {
@@ -314,49 +362,77 @@ def build_dashboard(connection, user):
         "你这月最常引发回应的，是带一点小经验的家常菜。",
     ]
 
-    if current_post:
-        normalized_dish = normalize_text(current_post["dish"])
+    matched_posts = []
+    matched_users_map = {}
+    matched_dishes_map = {}
+
+    if current_user_posts:
+        current_dish_keys = {normalize_text(row["dish"]) for row in current_user_posts}
+        current_categories = {row["category"] for row in current_user_posts}
+
         same_dish_rows = [
             row
             for row in posts
-            if row["user_id"] != user["id"] and normalize_text(row["dish"]) == normalized_dish
+            if row["user_id"] != user["id"]
+            and is_same_local_day(row.get("created_at"), today)
+            and normalize_text(row["dish"]) in current_dish_keys
         ]
         same_style_rows = [
             row
             for row in posts
             if row["user_id"] != user["id"]
-            and row["category"] == current_post["category"]
-            and normalize_text(row["dish"]) != normalized_dish
+            and is_same_local_day(row.get("created_at"), today)
+            and row["category"] in current_categories
+            and normalize_text(row["dish"]) not in current_dish_keys
         ]
 
-        same_dish_matches = [serialize_match(row, "同一道菜", current_post) for row in same_dish_rows[:3]]
-        same_style_matches = [serialize_match(row, "同一类菜", current_post) for row in same_style_rows[:4]]
+        current_post_by_dish = {normalize_text(row["dish"]): row for row in current_user_posts}
+        same_dish_matches = [
+            serialize_matched_post(row, "同一道菜", current_post_by_dish.get(normalize_text(row["dish"])))
+            for row in same_dish_rows
+        ]
+        same_style_matches = [
+            serialize_matched_post(row, "同一类菜", next(
+                (post for post in current_user_posts if post["category"] == row["category"]),
+                current_user_posts[0],
+            ))
+            for row in same_style_rows
+        ]
 
-        week_ago = now_utc() - timedelta(days=7)
-        weekly_counts = {}
+        all_matched_rows = same_dish_rows + same_style_rows
+        matched_posts = same_dish_matches + same_style_matches
+
+        for row in all_matched_rows:
+            matched_users_map[row["user_id"]] = row["display_name"]
+            matched_dishes_map[normalize_text(row["dish"])] = row["dish"]
+
+        week_ago_local = recent_local_day_range(7)
+        weekly_counts = defaultdict(lambda: {"count": 0, "categories": set()})
         for row in posts:
             created_at = coerce_datetime(row.get("created_at"))
             if not created_at:
                 continue
-            if row["user_id"] == user["id"] or created_at < week_ago:
+            created_local = created_at.astimezone(LOCAL_TIMEZONE)
+            if row["user_id"] == user["id"] or created_local < week_ago_local:
                 continue
-            if row["category"] != current_post["category"]:
+            if row["category"] not in current_categories:
                 continue
-            weekly_counts.setdefault(row["display_name"], 0)
-            weekly_counts[row["display_name"]] += 1
+            weekly_counts[row["display_name"]]["count"] += 1
+            weekly_counts[row["display_name"]]["categories"].add(row["category"])
 
         weekly_matches = [
             {
                 "name": name,
-                "meta": f"这周已经和你撞了 {count} 次 {current_post['category']}。",
+                "meta": f"这周已经和你撞了 {data['count']} 次 {'、'.join(sorted(data['categories'])) or '家常晚饭'}。",
             }
-            for name, count in sorted(weekly_counts.items(), key=lambda item: item[1], reverse=True)[:3]
+            for name, data in sorted(weekly_counts.items(), key=lambda item: item[1]["count"], reverse=True)[:3]
         ]
 
+        lead_category = current_user_posts[0]["category"]
         monthly_profiles = [
-            f"这个月你最常撞上的是 {current_post['category']}。",
-            "最容易和你撞上的人，通常也在晚饭前后做饭。",
-            f"最近只要你发 {current_post['category']}，就更容易有人回你。",
+            f"这个月你最常撞上的是 {lead_category}。",
+            "今天发过同类菜的人，双方都应该看到彼此。",
+            f"你今天发的 {len(current_user_posts)} 道菜，都会参与撞菜匹配。",
         ]
 
     return {
@@ -367,6 +443,13 @@ def build_dashboard(connection, user):
         "weekly_matches": weekly_matches,
         "monthly_profiles": monthly_profiles,
         "hero_points": ["先写菜名", "再看今天撞上谁", "慢慢留下自己的记录"],
+        "current_user_posts": [serialize_current_post(row) for row in current_user_posts],
+        "matched_posts": matched_posts,
+        "matched_users": [
+            {"user_id": user_id, "display_name": display_name}
+            for user_id, display_name in matched_users_map.items()
+        ],
+        "matched_dishes": list(matched_dishes_map.values()),
     }
 
 
@@ -379,30 +462,39 @@ def build_profile(connection, user):
         categories[row["category"]] = categories.get(row["category"], 0) + 1
     top_category = max(categories.items(), key=lambda item: item[1])[0] if categories else "家常晚饭"
 
-    week_ago = now_utc() - timedelta(days=7)
-    month_ago = now_utc() - timedelta(days=30)
+    week_ago = recent_local_day_range(7)
+    month_ago = recent_local_day_range(30)
     weekly_other = []
     monthly_other = []
     for row in posts:
         created_at = coerce_datetime(row.get("created_at"))
         if not created_at:
             continue
+        created_local = created_at.astimezone(LOCAL_TIMEZONE)
         if row["user_id"] == user["id"]:
             continue
-        if created_at >= week_ago:
+        if created_local >= week_ago:
             weekly_other.append(row)
-        if created_at >= month_ago:
+        if created_local >= month_ago:
             monthly_other.append(row)
 
     weekly_posts_count = sum(
         1
         for row in user_posts
-        if (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= week_ago
+        if (
+            (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc))
+            .astimezone(LOCAL_TIMEZONE)
+            >= week_ago
+        )
     )
     monthly_posts_count = sum(
         1
         for row in user_posts
-        if (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= month_ago
+        if (
+            (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc))
+            .astimezone(LOCAL_TIMEZONE)
+            >= month_ago
+        )
     )
 
     stats = [
@@ -643,5 +735,5 @@ def profile():
             return jsonify({"error": "请先登录"}), 401
         return jsonify(build_profile(connection, user))
 
-
-ensure_schema()
+if os.environ.get("SUPABASE_DB_URL"):
+    ensure_schema()
