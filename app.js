@@ -2,6 +2,7 @@ const state = {
   user: null,
   dashboard: null,
   profile: null,
+  publicFeed: null,
   authMode: "login",
   activeView: "feed",
   photoDataUrl: null,
@@ -13,6 +14,7 @@ const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
 const showLoginButton = document.getElementById("show-login");
 const showRegisterButton = document.getElementById("show-register");
+const closeAuthButton = document.getElementById("close-auth");
 const authMessage = document.getElementById("auth-message");
 const logoutButton = document.getElementById("logout-button");
 
@@ -34,6 +36,8 @@ const weeklyMatchList = document.getElementById("weekly-match-list");
 const monthlyProfileList = document.getElementById("monthly-profile-list");
 const sameDishCount = document.getElementById("same-dish-count");
 const sameStyleCount = document.getElementById("same-style-count");
+const sameDishHeading = document.getElementById("same-dish-heading");
+const sameStyleHeading = document.getElementById("same-style-heading");
 
 const relationshipList = document.getElementById("relationship-list");
 const nextUpList = document.getElementById("next-up-list");
@@ -80,6 +84,22 @@ function clearAutoRefresh() {
   }
 }
 
+function setGuestMode(isGuest) {
+  document.body.classList.toggle("guest-mode", isGuest);
+  logoutButton.hidden = isGuest;
+}
+
+function showAuthScreen(mode = "login", message = "") {
+  setAuthMode(mode);
+  authMessage.textContent = message;
+  authScreen.hidden = false;
+}
+
+function hideAuthScreen() {
+  authScreen.hidden = true;
+  authMessage.textContent = "";
+}
+
 function startAutoRefresh() {
   clearAutoRefresh();
   if (!state.user) {
@@ -107,11 +127,6 @@ function setAuthMode(mode) {
   authMessage.textContent = "";
 }
 
-function setAuthOnly(isAuthOnly) {
-  document.body.classList.toggle("auth-only", isAuthOnly);
-  authScreen.hidden = !isAuthOnly;
-}
-
 function activateView(name) {
   state.activeView = name;
   viewButtons.forEach((button) => {
@@ -120,6 +135,22 @@ function activateView(name) {
   views.forEach((view) => {
     view.classList.toggle("active", view.dataset.view === name);
   });
+}
+
+function formatCreatedAt(value) {
+  if (!value) {
+    return "最近发布";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "最近发布";
+  }
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) {
+    return `今天 ${date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
 function renderStarterStack(items) {
@@ -162,6 +193,80 @@ function renderMatchCards(target, list, emptyText) {
   });
 }
 
+function renderPublicFeedCards(target, list, emptyText) {
+  target.innerHTML = "";
+  if (!list.length) {
+    const card = document.createElement("article");
+    card.className = "feed-card card";
+    card.innerHTML = `<p class="feed-note">${escapeHtml(emptyText)}</p>`;
+    target.appendChild(card);
+    return;
+  }
+
+  list.forEach((post) => {
+    const card = document.createElement("article");
+    card.className = "feed-card card";
+    const imageMarkup = post.photo_public_url
+      ? `<img src="${post.photo_public_url}" alt="${escapeHtml(post.dish)}" />`
+      : `<span>${escapeHtml(post.dish)}</span>`;
+    card.innerHTML = `
+      <div class="feed-topline">
+        <div>
+          <p class="section-kicker">${escapeHtml(post.display_name)}</p>
+          <h3>${escapeHtml(post.dish)}</h3>
+        </div>
+        <span class="ghost-pill">${escapeHtml(post.category)}</span>
+      </div>
+      <div class="feed-photo">${imageMarkup}</div>
+      <p class="feed-note">${escapeHtml(post.note || "今天也做了这一顿。")}</p>
+      <div class="comment-list">
+        <div class="comment-item">${escapeHtml(formatCreatedAt(post.created_at))}</div>
+      </div>
+    `;
+    target.appendChild(card);
+  });
+}
+
+function renderPublicHome() {
+  const data = state.publicFeed;
+  if (!data) {
+    return;
+  }
+
+  heroTitle.innerHTML = `
+    <span class="hero-title-name">大家今晚</span>
+    <span class="hero-title-question">吃了什么？</span>
+  `;
+  updatesBadge.textContent = `${data.updates_count} 人已更新`;
+  heroCapacity.textContent = `最近已有 ${data.updates_count} 道晚饭`;
+  heroPoint1.textContent = data.hero_points[0] || "先看看大家做了什么";
+  heroPoint2.textContent = data.hero_points[1] || "想发一顿时再登录";
+  heroPoint3.textContent = data.hero_points[2] || "撞菜和记录会在登录后开始";
+  renderStarterStack(data.starters || []);
+
+  sameDishHeading.textContent = "大家今晚吃了什么";
+  sameStyleHeading.textContent = "最近大家在做什么";
+  sameDishCount.textContent = `${(data.today_posts || []).length} 道`;
+  sameStyleCount.textContent = `${(data.recent_posts || []).length} 道`;
+  renderPublicFeedCards(sameDishList, data.today_posts || [], "今晚还没有新的晚饭更新。");
+  renderPublicFeedCards(sameStyleList, data.recent_posts || [], "最近还没有新的社区晚饭。");
+
+  weeklyMatchList.innerHTML = "";
+  (data.starters || []).forEach((person) => weeklyMatchList.appendChild(clonePersonCard(person)));
+
+  monthlyProfileList.innerHTML = "";
+  [
+    "先看看社区里大家今晚吃了什么。",
+    "你不登录也可以随便逛一逛。",
+    "想发自己的晚饭时，再登录就行。",
+  ].forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "snapshot-item";
+    card.innerHTML = `<strong>${escapeHtml(item)}</strong><p>先浏览，再决定要不要加入。</p>`;
+    monthlyProfileList.appendChild(card);
+  });
+}
+
 function renderDashboard() {
   const data = state.dashboard;
   if (!data) {
@@ -178,6 +283,8 @@ function renderDashboard() {
   heroPoint2.textContent = data.hero_points[1] || "再看今天撞上谁";
   heroPoint3.textContent = data.hero_points[2] || "慢慢留下自己的记录";
   renderStarterStack(data.starters);
+  sameDishHeading.textContent = "撞上同一道菜";
+  sameStyleHeading.textContent = "撞上同一类菜";
 
   sameDishCount.textContent = `${data.same_dish_matches.length} 人`;
   sameStyleCount.textContent = `${data.same_style_matches.length} 人`;
@@ -274,6 +381,14 @@ async function refreshAppData() {
   renderProfile();
 }
 
+async function refreshPublicFeedData() {
+  const publicFeed = await fetchJson("/api/public-feed");
+  state.publicFeed = publicFeed;
+  if (!state.user) {
+    renderPublicHome();
+  }
+}
+
 async function refreshDashboardData({ silent = false } = {}) {
   try {
     const dashboard = await fetchJson("/api/dashboard");
@@ -290,16 +405,23 @@ async function refreshDashboardData({ silent = false } = {}) {
 }
 
 async function bootstrap() {
+  await refreshPublicFeedData().catch(() => {});
   try {
     const me = await fetchJson("/api/me");
     state.user = me.user;
-    setAuthOnly(false);
+    setGuestMode(false);
+    hideAuthScreen();
     await refreshAppData();
     startAutoRefresh();
   } catch (_error) {
     clearAutoRefresh();
-    setAuthOnly(true);
-    setAuthMode("login");
+    state.user = null;
+    state.dashboard = null;
+    state.profile = null;
+    setGuestMode(true);
+    hideAuthScreen();
+    activateView("feed");
+    renderPublicHome();
   }
 }
 
@@ -315,7 +437,8 @@ async function submitLogin(event) {
       }),
     });
     state.user = payload.user;
-    setAuthOnly(false);
+    setGuestMode(false);
+    hideAuthScreen();
     authMessage.textContent = "";
     loginForm.reset();
     await refreshAppData();
@@ -338,7 +461,8 @@ async function submitRegister(event) {
       }),
     });
     state.user = payload.user;
-    setAuthOnly(false);
+    setGuestMode(false);
+    hideAuthScreen();
     authMessage.textContent = "";
     registerForm.reset();
     await refreshAppData();
@@ -357,11 +481,17 @@ async function logout() {
   state.user = null;
   state.dashboard = null;
   state.profile = null;
-  setAuthOnly(true);
-  setAuthMode("login");
+  setGuestMode(true);
+  hideAuthScreen();
+  activateView("feed");
+  await refreshPublicFeedData().catch(() => {});
 }
 
 async function postKitchenCard() {
+  if (!state.user) {
+    showAuthScreen("register", "想发自己的晚饭时，先登录或注册。");
+    return;
+  }
   const dish = dishName.value.trim();
   const note = dishNote.value.trim();
   if (!dish) {
@@ -383,6 +513,7 @@ async function postKitchenCard() {
     dishPhoto.value = "";
     updatePhotoPreview(null);
     await refreshAppData();
+    await refreshPublicFeedData().catch(() => {});
     activateView("feed");
     startAutoRefresh();
   } catch (error) {
@@ -392,6 +523,7 @@ async function postKitchenCard() {
 
 showLoginButton.addEventListener("click", () => setAuthMode("login"));
 showRegisterButton.addEventListener("click", () => setAuthMode("register"));
+closeAuthButton.addEventListener("click", hideAuthScreen);
 loginForm.addEventListener("submit", submitLogin);
 registerForm.addEventListener("submit", submitRegister);
 logoutButton.addEventListener("click", logout);
@@ -399,6 +531,10 @@ logoutButton.addEventListener("click", logout);
 viewButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const target = button.dataset.viewTarget;
+    if (!state.user && target === "circle") {
+      showAuthScreen("login", "登录后才能看自己的记录。");
+      return;
+    }
     activateView(target);
     if (target === "feed" && state.user) {
       try {
@@ -414,9 +550,17 @@ jumpButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.jump;
     if (target === "quick-post") {
+      if (!state.user) {
+        showAuthScreen("register", "想发一顿时，先登录或注册。");
+        return;
+      }
       activateView("feed");
       document.getElementById("quick-post").scrollIntoView({ behavior: "smooth", block: "start" });
       dishName.focus();
+      return;
+    }
+    if (!state.user && target === "circle") {
+      showAuthScreen("login", "登录后才能看自己的记录。");
       return;
     }
     activateView(target);

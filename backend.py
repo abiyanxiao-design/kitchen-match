@@ -337,6 +337,41 @@ def serialize_matched_post(row, audience, current_post=None):
     return payload
 
 
+def serialize_public_post(row):
+    created_at = coerce_datetime(row.get("created_at"))
+    return {
+        "display_name": row["display_name"],
+        "dish": row["dish"],
+        "note": row["note"] or "",
+        "photo_public_url": row.get("photo_public_url"),
+        "created_at": created_at.isoformat() if created_at else None,
+        "category": row["category"],
+    }
+
+
+def build_public_feed(connection):
+    posts = fetch_posts(connection)
+    today = now_local().date()
+    today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
+    recent_posts = posts[:12]
+
+    starters = [
+        {
+            "name": row["display_name"],
+            "meta": f"刚发了 {row['dish']} · {(row['note'] or '今天更新了晚饭')[:18]}",
+        }
+        for row in recent_posts[:4]
+    ]
+
+    return {
+        "updates_count": len(recent_posts),
+        "today_posts": [serialize_public_post(row) for row in today_posts[:8]],
+        "recent_posts": [serialize_public_post(row) for row in recent_posts],
+        "starters": starters,
+        "hero_points": ["先看看大家做了什么", "想发一顿时再登录", "撞菜和记录会在登录后开始"],
+    }
+
+
 def build_dashboard(connection, user):
     posts = fetch_posts(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
@@ -607,6 +642,13 @@ def me():
         if not user:
             return jsonify({"error": "未登录"}), 401
         return jsonify({"user": dict(user)})
+
+
+@app.get("/public-feed")
+@app.get("/api/public-feed")
+def public_feed():
+    with pg_connection() as connection:
+        return jsonify(build_public_feed(connection))
 
 
 @app.post("/register")

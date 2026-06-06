@@ -37,13 +37,6 @@ body {
   padding-bottom: 6rem;
 }
 
-body.auth-only .mobile-topbar,
-body.auth-only .hero,
-body.auth-only main,
-body.auth-only .bottom-tabbar {
-  display: none;
-}
-
 button,
 input,
 textarea {
@@ -88,20 +81,30 @@ textarea {
 
 .auth-screen {
   min-height: 100vh;
-  display: none;
+  display: grid;
   place-items: center;
   padding: 1rem;
-  position: relative;
-  z-index: 2;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(38, 33, 27, 0.24);
+  backdrop-filter: blur(6px);
 }
 
-body.auth-only .auth-screen {
-  display: grid;
+.auth-screen[hidden] {
+  display: none !important;
 }
 
 .auth-card {
+  position: relative;
   width: min(420px, 100%);
   padding: 1.5rem;
+}
+
+.auth-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }
 
 .auth-title {
@@ -845,6 +848,17 @@ body.auth-only .auth-screen {
 .quick-post-card {
   padding: 1.3rem;
   margin-bottom: 1rem;
+}
+
+body.guest-mode #quick-post {
+  display: none;
+}
+
+body.guest-mode .profile-layout,
+body.guest-mode .grid-two,
+body.guest-mode .affinity-card,
+body.guest-mode [data-view="circle"] .section-head {
+  display: none;
 }
 
 .quick-post-form {

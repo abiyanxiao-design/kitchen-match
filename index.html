@@ -16,8 +16,9 @@
     <div class="bg-orb bg-orb-left"></div>
     <div class="bg-orb bg-orb-right"></div>
 
-    <section class="auth-screen" id="auth-screen">
+    <section class="auth-screen" id="auth-screen" hidden>
       <div class="auth-card card">
+        <button class="ghost-link auth-close" id="close-auth">先看看大家做了什么</button>
         <p class="section-kicker">今日厨房</p>
         <h1 class="auth-title">先注册，再开始撞菜</h1>
         <p class="auth-text">注册之后，你发的菜、照片和记录都会真的保存下来。</p>
@@ -134,14 +135,14 @@
             </div>
             <div class="match-group">
               <div class="match-group-head">
-                <h3>撞上同一道菜</h3>
+                <h3 id="same-dish-heading">撞上同一道菜</h3>
                 <span class="group-count" id="same-dish-count"></span>
               </div>
               <div class="feed-list" id="same-dish-list"></div>
             </div>
             <div class="match-group">
               <div class="match-group-head">
-                <h3>撞上同一类菜</h3>
+                <h3 id="same-style-heading">撞上同一类菜</h3>
                 <span class="group-count" id="same-style-count"></span>
               </div>
               <div class="feed-list" id="same-style-list"></div>
