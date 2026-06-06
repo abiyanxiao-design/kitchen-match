@@ -33,8 +33,22 @@ def normalize_text(value):
     return "".join((value or "").strip().lower().split())
 
 
-def local_day_label(iso_string):
-    created_at = datetime.fromisoformat(iso_string)
+def coerce_datetime(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, str):
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    raise TypeError(f"Unsupported datetime value: {type(value)!r}")
+
+
+def local_day_label(value):
+    created_at = coerce_datetime(value)
+    if not created_at:
+        return "今天"
     today = now_utc().date()
     days = (today - created_at.date()).days
     if days <= 0:
@@ -321,7 +335,9 @@ def build_dashboard(connection, user):
         week_ago = now_utc() - timedelta(days=7)
         weekly_counts = {}
         for row in posts:
-            created_at = datetime.fromisoformat(row["created_at"])
+            created_at = coerce_datetime(row.get("created_at"))
+            if not created_at:
+                continue
             if row["user_id"] == user["id"] or created_at < week_ago:
                 continue
             if row["category"] != current_post["category"]:
@@ -368,7 +384,9 @@ def build_profile(connection, user):
     weekly_other = []
     monthly_other = []
     for row in posts:
-        created_at = datetime.fromisoformat(row["created_at"])
+        created_at = coerce_datetime(row.get("created_at"))
+        if not created_at:
+            continue
         if row["user_id"] == user["id"]:
             continue
         if created_at >= week_ago:
@@ -376,10 +394,21 @@ def build_profile(connection, user):
         if created_at >= month_ago:
             monthly_other.append(row)
 
+    weekly_posts_count = sum(
+        1
+        for row in user_posts
+        if (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= week_ago
+    )
+    monthly_posts_count = sum(
+        1
+        for row in user_posts
+        if (coerce_datetime(row.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= month_ago
+    )
+
     stats = [
-        {"label": "本周发了", "value": f"{sum(1 for row in user_posts if datetime.fromisoformat(row['created_at']) >= week_ago)} 顿"},
+        {"label": "本周发了", "value": f"{weekly_posts_count} 顿"},
         {"label": "最常做", "value": top_category},
-        {"label": "本月记录", "value": f"{sum(1 for row in user_posts if datetime.fromisoformat(row['created_at']) >= month_ago)} 顿"},
+        {"label": "本月记录", "value": f"{monthly_posts_count} 顿"},
         {"label": "本月撞菜", "value": f"{len(monthly_other)} 次"},
     ]
 
