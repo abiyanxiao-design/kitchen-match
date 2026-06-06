@@ -23,6 +23,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SESSION_COOKIE = "kitchen_session"
 BUCKET_NAME = os.environ.get("SUPABASE_STORAGE_BUCKET", "post-images")
 LOCAL_TIMEZONE = ZoneInfo(os.environ.get("KITCHEN_TIMEZONE", "America/Toronto"))
+TODAY_TIMEZONE = ZoneInfo("America/Vancouver")
 
 
 app = Flask(__name__, static_folder=None)
@@ -34,6 +35,10 @@ def now_utc():
 
 def now_local():
     return now_utc().astimezone(LOCAL_TIMEZONE)
+
+
+def now_today_local():
+    return now_utc().astimezone(TODAY_TIMEZONE)
 
 
 def now_iso():
@@ -309,8 +314,8 @@ def is_same_local_day(value, target_day=None):
     created_at = coerce_datetime(value)
     if not created_at:
         return False
-    day = target_day or now_local().date()
-    return created_at.astimezone(LOCAL_TIMEZONE).date() == day
+    day = target_day or now_today_local().date()
+    return created_at.astimezone(TODAY_TIMEZONE).date() == day
 
 
 def recent_local_day_range(days=7):
@@ -350,7 +355,7 @@ def serialize_public_post(row):
 
 
 def build_today_hot_dishes(posts):
-    today = now_local().date()
+    today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     grouped = defaultdict(list)
     for row in today_posts:
@@ -380,18 +385,18 @@ def build_today_hot_dishes(posts):
 
 
 def build_today_new_dishes(posts):
-    today = now_local().date()
+    today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     if not today_posts:
         return []
 
-    seven_days_ago = now_local() - timedelta(days=7)
+    seven_days_ago = now_today_local() - timedelta(days=7)
     recent_history = {}
     for row in posts:
         created_at = coerce_datetime(row.get("created_at"))
         if not created_at:
             continue
-        created_local = created_at.astimezone(LOCAL_TIMEZONE)
+        created_local = created_at.astimezone(TODAY_TIMEZONE)
         dish_key = normalize_text(row["dish"])
         if created_local.date() == today:
             continue
@@ -459,7 +464,7 @@ def build_grouped_matches(rows, audience, key_field, label_field, current_lookup
 
 def build_public_feed(connection):
     posts = fetch_posts(connection)
-    today = now_local().date()
+    today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     recent_posts = posts[:12]
 
@@ -485,7 +490,7 @@ def build_public_feed(connection):
 def build_dashboard(connection, user):
     posts = fetch_posts(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
-    today = now_local().date()
+    today = now_today_local().date()
     current_user_posts = [row for row in user_posts if is_same_local_day(row.get("created_at"), today)]
     if not current_user_posts and user_posts:
         current_user_posts = user_posts[:1]
