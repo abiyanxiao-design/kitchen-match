@@ -24,6 +24,14 @@ SESSION_COOKIE = "kitchen_session"
 BUCKET_NAME = os.environ.get("SUPABASE_STORAGE_BUCKET", "post-images")
 LOCAL_TIMEZONE = ZoneInfo(os.environ.get("KITCHEN_TIMEZONE", "America/Toronto"))
 TODAY_TIMEZONE = ZoneInfo("America/Vancouver")
+MAX_PHOTO_BYTES = 5 * 1024 * 1024
+ALLOWED_IMAGE_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+}
 
 
 app = Flask(__name__, static_folder=None)
@@ -248,9 +256,16 @@ def delete_session(connection, token):
 def parse_data_url(data_url):
     match = re.match(r"^data:(?P<mime>[\w/+.-]+);base64,(?P<data>.+)$", data_url or "")
     if not match:
-        raise ValueError("图片格式不对")
+        raise ValueError("图片格式不支持，请换一张常见照片格式")
     mime = match.group("mime")
-    raw = base64.b64decode(match.group("data"))
+    if mime not in ALLOWED_IMAGE_MIME_TYPES:
+        raise ValueError("图片格式不支持，请换一张常见照片格式")
+    try:
+        raw = base64.b64decode(match.group("data"))
+    except Exception as exc:
+        raise ValueError("图片格式不支持，请换一张常见照片格式") from exc
+    if len(raw) > MAX_PHOTO_BYTES:
+        raise ValueError("图片太大，请换一张小一点的照片")
     extension = mime.split("/")[-1].replace("jpeg", "jpg")
     return mime, raw, extension
 
@@ -275,10 +290,27 @@ def upload_to_storage(user_id, photo_data_url):
         with request.urlopen(upload_request) as response:
             response.read()
     except error.HTTPError as exc:
-        raise RuntimeError(f"图片上传失败: {exc.read().decode('utf-8', errors='ignore')}") from exc
+        body = exc.read().decode("utf-8", errors="ignore").lower()
+        if exc.code == 413 or "too large" in body or "payload" in body:
+            raise RuntimeError("图片太大，请换一张小一点的照片") from exc
+        if exc.code in (401, 403):
+            raise RuntimeError("图片上传失败，请稍后再试") from exc
+        if exc.code == 415:
+            raise RuntimeError("图片格式不支持，请换一张常见照片格式") from exc
+        raise RuntimeError("图片上传失败，请稍后再试") from exc
+    except error.URLError as exc:
+        raise RuntimeError("图片上传失败，请稍后再试") from exc
 
     public_url = f"{os.environ['SUPABASE_URL'].rstrip('/')}/storage/v1/object/public/{BUCKET_NAME}/{object_path}"
     return object_path, public_url
+
+
+def to_post_upload_warning(message):
+    if "图片太大" in message:
+        return "图片太大，请换一张小一点的照片；这顿饭已经先帮你记下了。"
+    if "格式不支持" in message:
+        return "图片格式不支持；这顿饭已经先帮你记下了。"
+    return "图片没传上，但菜已经记录了。"
 
 
 def serialize_match(row, audience, current_post):
@@ -888,33 +920,37 @@ def create_post():
     with pg_connection() as connection:
         user = current_user(connection)
         if not user:
-            return jsonify({"error": "请先登录"}), 401
+            return jsonify({"error": "登录状态过期，请重新登录"}), 401
 
         photo_path = None
         photo_public_url = None
+        warning = None
         if photo_data_url:
             try:
                 photo_path, photo_public_url = upload_to_storage(user["id"], photo_data_url)
             except Exception as exc:
-                return jsonify({"error": str(exc)}), 400
+                warning = to_post_upload_warning(str(exc))
 
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                insert into posts (user_id, dish, note, photo_path, photo_public_url, category)
-                values (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    user["id"],
-                    dish,
-                    note,
-                    photo_path,
-                    photo_public_url,
-                    infer_category(dish, note),
-                ),
-            )
-        connection.commit()
-    return jsonify({"ok": True})
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into posts (user_id, dish, note, photo_path, photo_public_url, category)
+                    values (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        user["id"],
+                        dish,
+                        note,
+                        photo_path,
+                        photo_public_url,
+                        infer_category(dish, note),
+                    ),
+                )
+            connection.commit()
+        except Exception:
+            return jsonify({"error": "服务器暂时开小差了，请稍后再试"}), 500
+    return jsonify({"ok": True, "warning": warning})
 
 
 @app.get("/dashboard")

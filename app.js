@@ -50,7 +50,6 @@ const footprintTitle = document.getElementById("footprint-title");
 const footprintNote = document.getElementById("footprint-note");
 const footprintFavorites = document.getElementById("footprint-favorites");
 
-const countdown = document.getElementById("countdown");
 const dishName = document.getElementById("dish-name");
 const dishNote = document.getElementById("dish-note");
 const dishPhoto = document.getElementById("dish-photo");
@@ -77,7 +76,22 @@ async function fetchJson(url, options = {}) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "请求失败");
+    if (payload.error) {
+      throw new Error(payload.error);
+    }
+    if (response.status === 401) {
+      throw new Error("登录状态过期，请重新登录");
+    }
+    if (response.status === 413) {
+      throw new Error("图片太大，请换一张小一点的照片");
+    }
+    if (response.status === 415) {
+      throw new Error("图片格式不支持，请换一张常见照片格式");
+    }
+    if (response.status >= 500) {
+      throw new Error("服务器暂时开小差了，请稍后再试");
+    }
+    throw new Error("请求失败，请稍后再试");
   }
   return payload;
 }
@@ -158,9 +172,35 @@ function formatCreatedAt(value) {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
+function getStarterDish(item) {
+  const meta = String(item?.meta || "");
+  if (!meta) {
+    return "刚更新了一顿晚饭";
+  }
+  return meta.replace(/^刚发了\s*/, "").split("·")[0].trim() || "刚更新了一顿晚饭";
+}
+
 function renderStarterStack(items) {
   starterStack.innerHTML = "";
-  items.forEach((item) => starterStack.appendChild(clonePersonCard(item)));
+  const recentItems = (items || []).slice(0, 2);
+  if (!recentItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "starter-empty";
+    empty.textContent = "还在等第一顿晚饭出现。";
+    starterStack.appendChild(empty);
+    return;
+  }
+
+  recentItems.forEach((item) => {
+    const row = document.createElement("article");
+    row.className = "starter-activity-row";
+    row.innerHTML = `
+      <span class="starter-activity-name">${escapeHtml(item.name)}</span>
+      <span class="starter-activity-divider">·</span>
+      <span class="starter-activity-dish">${escapeHtml(getStarterDish(item))}</span>
+    `;
+    starterStack.appendChild(row);
+  });
 }
 
 function renderMatchEmptyState(target, emptyText) {
@@ -692,11 +732,12 @@ async function postKitchenCard() {
   const note = dishNote.value.trim();
   if (!dish) {
     dishName.focus();
+    alert("菜名不能为空");
     return;
   }
 
   try {
-    await fetchJson("/api/posts", {
+    const payload = await fetchJson("/api/posts", {
       method: "POST",
       body: JSON.stringify({
         dish,
@@ -712,7 +753,14 @@ async function postKitchenCard() {
     await refreshPublicFeedData().catch(() => {});
     activateView("feed");
     startAutoRefresh();
+    if (payload.warning) {
+      alert(payload.warning);
+    }
   } catch (error) {
+    if (String(error.message || "").includes("登录状态过期") || String(error.message || "").includes("请先登录")) {
+      showAuthScreen("login", "登录状态过期，请重新登录。");
+      return;
+    }
     alert(error.message);
   }
 }
