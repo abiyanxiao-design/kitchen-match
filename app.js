@@ -69,6 +69,7 @@ const sameStyleBlock = sameStyleList.closest(".inspiration-block");
 
 let toastTimerId = null;
 let deferredInstallPrompt = null;
+const INSTALL_BANNER_DISMISSED_KEY = "kitchen-match-install-banner-dismissed";
 let installBannerDismissed = false;
 
 function escapeHtml(value) {
@@ -136,6 +137,26 @@ function hideInstallBanner() {
   }
 }
 
+function loadInstallBannerPreference() {
+  try {
+    installBannerDismissed = localStorage.getItem(INSTALL_BANNER_DISMISSED_KEY) === "1";
+  } catch (_error) {
+    installBannerDismissed = false;
+  }
+}
+
+function dismissInstallBanner(remember = false) {
+  installBannerDismissed = remember;
+  if (remember) {
+    try {
+      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, "1");
+    } catch (_error) {
+      // Ignore storage failures and just hide the banner for this session.
+    }
+  }
+  hideInstallBanner();
+}
+
 function maybeShowInstallBanner() {
   if (!installBanner || installBannerDismissed || isStandaloneMode()) {
     hideInstallBanner();
@@ -151,7 +172,7 @@ function maybeShowInstallBanner() {
   }
 
   if (isIosSafari()) {
-    installBannerText.textContent = "在 Safari 里点分享，再点“添加到主屏幕”，以后打开会更像一个真正的小应用。";
+    installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
     installButton.hidden = true;
     dismissInstallButton.textContent = "知道了";
     installBanner.hidden = false;
@@ -882,6 +903,7 @@ async function refreshDashboardData({ silent = false } = {}) {
 }
 
 async function bootstrap() {
+  loadInstallBannerPreference();
   maybeShowInstallBanner();
   await refreshPublicFeedData().catch(() => {});
   try {
@@ -1035,8 +1057,7 @@ showRegisterButton.addEventListener("click", () => setAuthMode("register"));
 closeAuthButton.addEventListener("click", hideAuthScreen);
 if (dismissInstallButton) {
   dismissInstallButton.addEventListener("click", () => {
-    installBannerDismissed = true;
-    hideInstallBanner();
+    dismissInstallBanner(isIosSafari());
   });
 }
 if (installButton) {
