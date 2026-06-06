@@ -54,6 +54,8 @@ const dishName = document.getElementById("dish-name");
 const dishNote = document.getElementById("dish-note");
 const dishPhoto = document.getElementById("dish-photo");
 const photoPreview = document.getElementById("photo-preview");
+const MAX_UPLOAD_IMAGE_EDGE = 1600;
+const JPEG_UPLOAD_QUALITY = 0.8;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -170,6 +172,69 @@ function formatCreatedAt(value) {
     return `今天 ${date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
   }
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("图片读取失败，请换一张再试"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("图片压缩失败，请稍后再试"));
+    image.src = dataUrl;
+  });
+}
+
+function canvasToJpegDataUrl(canvas, quality = JPEG_UPLOAD_QUALITY) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("图片压缩失败，请稍后再试"));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("图片压缩失败，请稍后再试"));
+        reader.readAsDataURL(blob);
+      },
+      "image/jpeg",
+      quality,
+    );
+  });
+}
+
+async function compressImageFile(file) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageElement(originalDataUrl);
+  const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+
+  if (!longestEdge) {
+    return originalDataUrl;
+  }
+
+  const scale = longestEdge > MAX_UPLOAD_IMAGE_EDGE ? MAX_UPLOAD_IMAGE_EDGE / longestEdge : 1;
+  const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+  const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return originalDataUrl;
+  }
+
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+  const compressedDataUrl = await canvasToJpegDataUrl(canvas);
+  return typeof compressedDataUrl === "string" ? compressedDataUrl : originalDataUrl;
 }
 
 function getStarterDish(item) {
@@ -589,7 +654,7 @@ function renderProfile() {
   });
 }
 
-function updatePhotoPreview(file) {
+async function updatePhotoPreview(file) {
   if (!file) {
     state.photoDataUrl = null;
     photoPreview.classList.add("empty");
@@ -597,13 +662,29 @@ function updatePhotoPreview(file) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    state.photoDataUrl = reader.result;
+  photoPreview.classList.add("empty");
+  photoPreview.innerHTML = "正在准备照片...";
+
+  try {
+    const preparedDataUrl = await compressImageFile(file);
+    state.photoDataUrl = preparedDataUrl;
     photoPreview.classList.remove("empty");
-    photoPreview.innerHTML = `<img src="${reader.result}" alt="你上传的菜图预览" />`;
-  };
-  reader.readAsDataURL(file);
+    photoPreview.innerHTML = `<img src="${preparedDataUrl}" alt="你上传的菜图预览" />`;
+  } catch (_error) {
+    const originalDataUrl = await readFileAsDataUrl(file).catch(() => null);
+    if (originalDataUrl) {
+      state.photoDataUrl = originalDataUrl;
+      photoPreview.classList.remove("empty");
+      photoPreview.innerHTML = `<img src="${originalDataUrl}" alt="你上传的菜图预览" />`;
+      return;
+    }
+
+    state.photoDataUrl = null;
+    dishPhoto.value = "";
+    photoPreview.classList.add("empty");
+    photoPreview.innerHTML = "照片可选，不传也可以";
+    alert("图片处理失败，请换一张再试");
+  }
 }
 
 async function refreshAppData() {
