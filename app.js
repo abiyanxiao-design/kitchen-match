@@ -54,11 +54,16 @@ const dishName = document.getElementById("dish-name");
 const dishNote = document.getElementById("dish-note");
 const dishPhoto = document.getElementById("dish-photo");
 const photoPreview = document.getElementById("photo-preview");
+const postButton = document.getElementById("post-card");
 const MAX_UPLOAD_IMAGE_EDGE = 1200;
 const JPEG_UPLOAD_QUALITY = 0.72;
 const SECOND_PASS_MAX_EDGE = 1000;
 const SECOND_PASS_JPEG_QUALITY = 0.65;
 const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
+const sameDishBlock = sameDishList.closest(".inspiration-block");
+const sameStyleBlock = sameStyleList.closest(".inspiration-block");
+
+let toastTimerId = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -175,6 +180,68 @@ function formatCreatedAt(value) {
     return `今天 ${date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
   }
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+}
+
+function ensureToast() {
+  let toast = document.getElementById("app-toast");
+  if (toast) {
+    return toast;
+  }
+  toast = document.createElement("div");
+  toast.id = "app-toast";
+  toast.className = "app-toast";
+  document.body.appendChild(toast);
+  return toast;
+}
+
+function showToast(message, tone = "default") {
+  const toast = ensureToast();
+  toast.textContent = message;
+  toast.dataset.tone = tone;
+  toast.classList.add("visible");
+  clearTimeout(toastTimerId);
+  toastTimerId = setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 2200);
+}
+
+function setPostButtonLoading(isLoading, text = "看看今天和谁撞菜") {
+  postButton.disabled = isLoading;
+  postButton.classList.toggle("is-loading", isLoading);
+  postButton.textContent = isLoading ? text : "看看今天和谁撞菜";
+}
+
+function getPrimaryMatchSummary(dashboard) {
+  if (!dashboard) {
+    return "今天还没人和你撞上，不过你已经留下了这一顿。";
+  }
+  const sameDishGroups = dashboard.grouped_matches?.same_dish || groupLegacyMatches(dashboard.same_dish_matches || [], "same_dish");
+  const sameStyleGroups = dashboard.grouped_matches?.same_style || groupLegacyMatches(dashboard.same_style_matches || [], "same_style");
+  const leadGroup = sameDishGroups[0] || sameStyleGroups[0];
+  if (!leadGroup) {
+    return "今天还没人和你撞上，不过你已经留下了这一顿。";
+  }
+  return `你和 ${leadGroup.count} 个人撞上了${leadGroup.label}！`;
+}
+
+function revealMatchResults() {
+  [sameDishBlock, sameStyleBlock].forEach((block) => {
+    if (!block) {
+      return;
+    }
+    block.classList.remove("reveal-pulse");
+    requestAnimationFrame(() => {
+      block.classList.add("reveal-pulse");
+    });
+  });
+}
+
+function scrollToMatchResults() {
+  const target = sameDishBlock || sameDishList;
+  if (!target) {
+    return;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function readFileAsDataUrl(file) {
@@ -541,12 +608,16 @@ function renderPublicHome() {
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
 
+  const publicLeadPosts = (data.today_posts && data.today_posts.length)
+    ? data.today_posts
+    : (data.recent_posts || []).slice(0, 8);
+  const publicRecentPosts = (data.recent_posts || []).slice(0, 8);
   sameDishHeading.textContent = "🥘 大家今晚吃了什么";
   sameStyleHeading.textContent = "最近大家在做什么";
-  sameDishCount.textContent = `${(data.today_posts || []).length} 道`;
-  sameStyleCount.textContent = `${(data.recent_posts || []).length} 道`;
-  renderPublicFeedCards(sameDishList, data.today_posts || [], "今晚还没有新的晚饭更新。");
-  renderPublicFeedCards(sameStyleList, data.recent_posts || [], "最近还没有新的社区晚饭。");
+  sameDishCount.textContent = `${publicLeadPosts.length} 道`;
+  sameStyleCount.textContent = `${publicRecentPosts.length} 道`;
+  renderPublicFeedCards(sameDishList, publicLeadPosts, "今晚还没有新的晚饭更新。");
+  renderPublicFeedCards(sameStyleList, publicRecentPosts, "最近还没有新的社区晚饭。");
 
   weeklyMatchList.innerHTML = "";
   (data.starters || []).forEach((person) => weeklyMatchList.appendChild(clonePersonCard(person)));
@@ -848,6 +919,7 @@ async function postKitchenCard() {
   }
 
   try {
+    setPostButtonLoading(true, "正在看看今天谁和你撞菜…");
     const payload = await fetchJson("/api/posts", {
       method: "POST",
       body: JSON.stringify({
@@ -856,23 +928,33 @@ async function postKitchenCard() {
         photo_data_url: state.photoDataUrl,
       }),
     });
+    showToast("已记录，正在帮你找撞菜的人。", "success");
     dishName.value = "";
     dishNote.value = "";
     dishPhoto.value = "";
-    updatePhotoPreview(null);
+    await updatePhotoPreview(null);
     await refreshAppData();
     await refreshPublicFeedData().catch(() => {});
     activateView("feed");
     startAutoRefresh();
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(30);
+    }
+    revealMatchResults();
+    scrollToMatchResults();
+    showToast(getPrimaryMatchSummary(state.dashboard), "accent");
     if (payload.warning) {
-      alert(payload.warning);
+      showToast(payload.warning, "warning");
     }
   } catch (error) {
     if (String(error.message || "").includes("登录状态过期") || String(error.message || "").includes("请先登录")) {
       showAuthScreen("login", "登录状态过期，请重新登录。");
+      setPostButtonLoading(false);
       return;
     }
     alert(error.message);
+  } finally {
+    setPostButtonLoading(false);
   }
 }
 
