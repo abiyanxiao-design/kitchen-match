@@ -5,6 +5,7 @@ const state = {
   authMode: "login",
   activeView: "feed",
   photoDataUrl: null,
+  refreshIntervalId: null,
 };
 
 const authScreen = document.getElementById("auth-screen");
@@ -70,6 +71,23 @@ async function fetchJson(url, options = {}) {
     throw new Error(payload.error || "请求失败");
   }
   return payload;
+}
+
+function clearAutoRefresh() {
+  if (state.refreshIntervalId) {
+    clearInterval(state.refreshIntervalId);
+    state.refreshIntervalId = null;
+  }
+}
+
+function startAutoRefresh() {
+  clearAutoRefresh();
+  if (!state.user) {
+    return;
+  }
+  state.refreshIntervalId = setInterval(() => {
+    refreshDashboardData({ silent: true });
+  }, 15000);
 }
 
 function clonePersonCard(person) {
@@ -253,13 +271,30 @@ async function refreshAppData() {
   renderProfile();
 }
 
+async function refreshDashboardData({ silent = false } = {}) {
+  try {
+    const dashboard = await fetchJson("/api/dashboard");
+    state.dashboard = dashboard;
+    renderDashboard();
+  } catch (error) {
+    if (!silent) {
+      throw error;
+    }
+    if (String(error.message || "").includes("未登录")) {
+      clearAutoRefresh();
+    }
+  }
+}
+
 async function bootstrap() {
   try {
     const me = await fetchJson("/api/me");
     state.user = me.user;
     setAuthOnly(false);
     await refreshAppData();
+    startAutoRefresh();
   } catch (_error) {
+    clearAutoRefresh();
     setAuthOnly(true);
     setAuthMode("login");
   }
@@ -281,6 +316,7 @@ async function submitLogin(event) {
     authMessage.textContent = "";
     loginForm.reset();
     await refreshAppData();
+    startAutoRefresh();
   } catch (error) {
     authMessage.textContent = error.message;
   }
@@ -303,6 +339,7 @@ async function submitRegister(event) {
     authMessage.textContent = "";
     registerForm.reset();
     await refreshAppData();
+    startAutoRefresh();
   } catch (error) {
     authMessage.textContent = error.message;
   }
@@ -313,6 +350,7 @@ async function logout() {
     method: "POST",
     body: JSON.stringify({}),
   }).catch(() => {});
+  clearAutoRefresh();
   state.user = null;
   state.dashboard = null;
   state.profile = null;
@@ -343,6 +381,7 @@ async function postKitchenCard() {
     updatePhotoPreview(null);
     await refreshAppData();
     activateView("feed");
+    startAutoRefresh();
   } catch (error) {
     alert(error.message);
   }
@@ -355,7 +394,17 @@ registerForm.addEventListener("submit", submitRegister);
 logoutButton.addEventListener("click", logout);
 
 viewButtons.forEach((button) => {
-  button.addEventListener("click", () => activateView(button.dataset.viewTarget));
+  button.addEventListener("click", async () => {
+    const target = button.dataset.viewTarget;
+    activateView(target);
+    if (target === "feed" && state.user) {
+      try {
+        await refreshDashboardData();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  });
 });
 
 jumpButtons.forEach((button) => {
