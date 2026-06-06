@@ -916,6 +916,102 @@ body.guest-mode [data-view="circle"] .section-head {
   gap: 0.8rem;
 }
 
+.match-empty-card {
+  padding: 0.95rem 1rem;
+  min-height: 0;
+}
+
+.match-group-card {
+  padding: 0.9rem 0.95rem 0.85rem;
+  overflow: hidden;
+}
+
+.match-group-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.match-summary-line {
+  margin: 0.3rem 0 0;
+}
+
+.match-user-list {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.match-user-pill,
+.match-user-more {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.9);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.match-thumb-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.match-thumb-row img,
+.match-detail-thumb img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.match-details {
+  margin-top: 0.65rem;
+}
+
+.match-details summary {
+  cursor: pointer;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.match-detail-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+
+.match-detail-item {
+  padding: 0.8rem;
+  border-radius: 18px;
+  background: rgba(255, 252, 246, 0.82);
+  border: 1px solid var(--line);
+}
+
+.match-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.match-detail-dish {
+  margin: 0.35rem 0 0.5rem;
+  font-weight: 600;
+}
+
+.match-detail-thumb {
+  margin-bottom: 0.55rem;
+}
+
 .match-group-head {
   display: flex;
   justify-content: space-between;
@@ -1138,6 +1234,38 @@ body.guest-mode [data-view="circle"] .section-head {
   .feed-photo,
   .photo-preview {
     max-width: 100%;
+  }
+
+  .match-group-card {
+    padding: 0.8rem 0.82rem 0.78rem;
+  }
+
+  .match-group-summary h3 {
+    font-size: 1rem;
+  }
+
+  .match-user-list {
+    margin-top: 0.6rem;
+    gap: 0.4rem;
+  }
+
+  .match-user-pill,
+  .match-user-more {
+    padding: 0.3rem 0.58rem;
+    font-size: 0.79rem;
+  }
+
+  .match-details {
+    margin-top: 0.6rem;
+  }
+
+  .match-detail-item {
+    padding: 0.68rem;
+  }
+
+  .match-thumb-row img,
+  .match-detail-thumb img {
+    height: 58px;
   }
 
 }

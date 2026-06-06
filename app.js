@@ -158,39 +158,119 @@ function renderStarterStack(items) {
   items.forEach((item) => starterStack.appendChild(clonePersonCard(item)));
 }
 
-function renderMatchCards(target, list, emptyText) {
+function renderMatchEmptyState(target, emptyText) {
   target.innerHTML = "";
-  if (!list.length) {
-    const card = document.createElement("article");
-    card.className = "feed-card card";
-    card.innerHTML = `<p class="feed-note">${escapeHtml(emptyText)}</p>`;
-    target.appendChild(card);
+  const card = document.createElement("article");
+  card.className = "match-empty-card card";
+  card.innerHTML = `<p class="feed-note">${escapeHtml(emptyText)}</p>`;
+  target.appendChild(card);
+}
+
+function renderGroupedMatchCards(target, groups, emptyText) {
+  target.innerHTML = "";
+  if (!groups.length) {
+    renderMatchEmptyState(target, emptyText);
     return;
   }
 
-  list.forEach((post) => {
+  groups.forEach((group) => {
     const card = document.createElement("article");
-    card.className = "feed-card card";
-    const imageMarkup = post.photo_data_url
-      ? `<img src="${post.photo_data_url}" alt="${escapeHtml(post.dish)}" />`
-      : `<span>${escapeHtml(post.dish)}</span>`;
+    card.className = "match-group-card card";
+    const previewNames = group.user_names.map((name) => `<span class="match-user-pill">${escapeHtml(name)}</span>`).join("");
+    const morePeople = group.remaining_user_count
+      ? `<span class="match-user-more">等 ${group.remaining_user_count} 人</span>`
+      : "";
+    const thumbnails = (group.thumbnails || [])
+      .map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(group.label)} ${index + 1}" />`)
+      .join("");
+    const detailPosts = (group.posts || [])
+      .map((post) => {
+        const imageMarkup = post.photo_data_url
+          ? `<img src="${escapeHtml(post.photo_data_url)}" alt="${escapeHtml(post.dish)}" />`
+          : "";
+        return `
+          <article class="match-detail-item">
+            <div class="match-detail-head">
+              <strong>${escapeHtml(post.author)}</strong>
+              <span class="ghost-pill">${escapeHtml(post.created_day || post.audience)}</span>
+            </div>
+            <p class="match-detail-dish">${escapeHtml(post.dish)}</p>
+            ${imageMarkup ? `<div class="match-detail-thumb">${imageMarkup}</div>` : ""}
+            <p class="feed-note">${escapeHtml(post.note || "今天也做了这一顿。")}</p>
+          </article>
+        `;
+      })
+      .join("");
 
     card.innerHTML = `
-      <div class="feed-topline">
+      <div class="match-group-summary">
         <div>
-          <p class="section-kicker">${escapeHtml(post.author)}</p>
-          <h3>${escapeHtml(post.dish)}</h3>
+          <p class="section-kicker">${escapeHtml(group.group_type)}</p>
+          <h3>${escapeHtml(group.label)}</h3>
+          <p class="feed-note match-summary-line">${escapeHtml(group.summary)}</p>
         </div>
-        <span class="ghost-pill">${escapeHtml(post.audience)}</span>
+        <span class="group-count">${group.count} 人</span>
       </div>
-      <div class="feed-photo">${imageMarkup}</div>
-      <p class="feed-note">${escapeHtml(post.note)}</p>
-      <div class="comment-list">
-        ${post.comments.map((comment) => `<div class="comment-item">${escapeHtml(comment)}</div>`).join("")}
+      <div class="match-user-list">
+        ${previewNames}
+        ${morePeople}
       </div>
+      ${thumbnails ? `<div class="match-thumb-row">${thumbnails}</div>` : ""}
+      <details class="match-details">
+        <summary>查看详情</summary>
+        <div class="match-detail-list">
+          ${detailPosts}
+        </div>
+      </details>
     `;
     target.appendChild(card);
   });
+}
+
+function groupLegacyMatches(matches, groupType) {
+  const grouped = new Map();
+
+  matches.forEach((post) => {
+    const key = groupType === "same_dish"
+      ? (post.dish || "").trim()
+      : (post.category || post.audience || "").trim();
+    if (!key) {
+      return;
+    }
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        group_key: key,
+        group_type: groupType === "same_dish" ? "同一道菜" : "同一类菜",
+        label: key,
+        count: 0,
+        summary: "",
+        user_names: [],
+        remaining_user_count: 0,
+        thumbnails: [],
+        posts: [],
+      });
+    }
+
+    const group = grouped.get(key);
+    group.count += 1;
+    if (group.user_names.length < 5) {
+      group.user_names.push(post.author);
+    } else {
+      group.remaining_user_count += 1;
+    }
+    if (post.photo_data_url && group.thumbnails.length < 3) {
+      group.thumbnails.push(post.photo_data_url);
+    }
+    group.posts.push(post);
+  });
+
+  return Array.from(grouped.values())
+    .map((group) => ({
+      ...group,
+      summary: `你和 ${group.count} 个人撞上了`,
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 function renderPublicFeedCards(target, list, emptyText) {
@@ -286,10 +366,17 @@ function renderDashboard() {
   sameDishHeading.textContent = "撞上同一道菜";
   sameStyleHeading.textContent = "撞上同一类菜";
 
-  sameDishCount.textContent = `${data.same_dish_matches.length} 人`;
-  sameStyleCount.textContent = `${data.same_style_matches.length} 人`;
-  renderMatchCards(sameDishList, data.same_dish_matches, "今天还没有人和你撞上同一道菜。");
-  renderMatchCards(sameStyleList, data.same_style_matches, "今天暂时没人和你做同一类菜。");
+  const groupedSameDish = data.grouped_matches?.same_dish || [];
+  const groupedSameStyle = data.grouped_matches?.same_style || [];
+  const fallbackSameDish = groupLegacyMatches(data.same_dish_matches || [], "same_dish");
+  const fallbackSameStyle = groupLegacyMatches(data.same_style_matches || [], "same_style");
+  const sameDishGroups = groupedSameDish.length ? groupedSameDish : fallbackSameDish;
+  const sameStyleGroups = groupedSameStyle.length ? groupedSameStyle : fallbackSameStyle;
+
+  sameDishCount.textContent = `${sameDishGroups.length} 组`;
+  sameStyleCount.textContent = `${sameStyleGroups.length} 组`;
+  renderGroupedMatchCards(sameDishList, sameDishGroups, "今天还没有人和你撞上同一道菜。");
+  renderGroupedMatchCards(sameStyleList, sameStyleGroups, "今天暂时没人和你做同一类菜。");
 
   weeklyMatchList.innerHTML = "";
   data.weekly_matches.forEach((person) => weeklyMatchList.appendChild(clonePersonCard(person)));
