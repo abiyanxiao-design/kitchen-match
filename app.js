@@ -17,6 +17,10 @@ const showRegisterButton = document.getElementById("show-register");
 const closeAuthButton = document.getElementById("close-auth");
 const authMessage = document.getElementById("auth-message");
 const logoutButton = document.getElementById("logout-button");
+const installBanner = document.getElementById("install-banner");
+const installBannerText = document.getElementById("install-banner-text");
+const installButton = document.getElementById("install-button");
+const dismissInstallButton = document.getElementById("dismiss-install");
 
 const heroTitle = document.getElementById("hero-title");
 const heroCapacity = document.getElementById("hero-capacity");
@@ -64,6 +68,8 @@ const sameDishBlock = sameDishList.closest(".inspiration-block");
 const sameStyleBlock = sameStyleList.closest(".inspiration-block");
 
 let toastTimerId = null;
+let deferredInstallPrompt = null;
+let installBannerDismissed = false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -110,6 +116,59 @@ function clearAutoRefresh() {
   if (state.refreshIntervalId) {
     clearInterval(state.refreshIntervalId);
     state.refreshIntervalId = null;
+  }
+}
+
+function isStandaloneMode() {
+  return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
+}
+
+function isIosSafari() {
+  const ua = window.navigator.userAgent || "";
+  const isIos = /iphone|ipad|ipod/i.test(ua);
+  const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
+  return isIos && isSafari;
+}
+
+function hideInstallBanner() {
+  if (installBanner) {
+    installBanner.hidden = true;
+  }
+}
+
+function maybeShowInstallBanner() {
+  if (!installBanner || installBannerDismissed || isStandaloneMode()) {
+    hideInstallBanner();
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    installBannerText.textContent = "把 Kitchen Match 放到主屏幕，打开会更像一个真正的小应用。";
+    installButton.hidden = false;
+    dismissInstallButton.textContent = "稍后";
+    installBanner.hidden = false;
+    return;
+  }
+
+  if (isIosSafari()) {
+    installBannerText.textContent = "在 Safari 里点分享，再点“添加到主屏幕”，以后打开会更像一个真正的小应用。";
+    installButton.hidden = true;
+    dismissInstallButton.textContent = "知道了";
+    installBanner.hidden = false;
+    return;
+  }
+
+  hideInstallBanner();
+}
+
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  try {
+    await navigator.serviceWorker.register("/sw.js");
+  } catch (error) {
+    console.error("[Kitchen Match] service worker register failed", error);
   }
 }
 
@@ -823,6 +882,7 @@ async function refreshDashboardData({ silent = false } = {}) {
 }
 
 async function bootstrap() {
+  maybeShowInstallBanner();
   await refreshPublicFeedData().catch(() => {});
   try {
     const me = await fetchJson("/api/me");
@@ -842,6 +902,18 @@ async function bootstrap() {
     renderPublicHome();
   }
 }
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  maybeShowInstallBanner();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  hideInstallBanner();
+  showToast("Kitchen Match 已经装到主屏幕了。", "success");
+});
 
 async function submitLogin(event) {
   event.preventDefault();
@@ -961,6 +1033,24 @@ async function postKitchenCard() {
 showLoginButton.addEventListener("click", () => setAuthMode("login"));
 showRegisterButton.addEventListener("click", () => setAuthMode("register"));
 closeAuthButton.addEventListener("click", hideAuthScreen);
+if (dismissInstallButton) {
+  dismissInstallButton.addEventListener("click", () => {
+    installBannerDismissed = true;
+    hideInstallBanner();
+  });
+}
+if (installButton) {
+  installButton.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) {
+      maybeShowInstallBanner();
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+  });
+}
 loginForm.addEventListener("submit", submitLogin);
 registerForm.addEventListener("submit", submitRegister);
 logoutButton.addEventListener("click", logout);
@@ -1016,4 +1106,5 @@ dishPhoto.addEventListener("change", (event) => {
 });
 
 activateView("feed");
+registerServiceWorker();
 bootstrap();

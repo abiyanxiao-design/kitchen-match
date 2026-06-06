@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>今日厨房 MVP</title>
+    <meta name="theme-color" content="#bd5f2d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Kitchen Match" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -57,6 +63,19 @@
         </div>
       </div>
     </div>
+
+    <section class="shell app-shell install-banner" id="install-banner" hidden>
+      <div class="install-banner-card card">
+        <div>
+          <p class="section-kicker">装到主屏幕</p>
+          <p class="install-banner-text" id="install-banner-text">把 Kitchen Match 放到主屏幕，打开会更像一个真正的小应用。</p>
+        </div>
+        <div class="install-banner-actions">
+          <button class="primary-button" id="install-button" type="button">安装</button>
+          <button class="ghost-link" id="dismiss-install" type="button">稍后</button>
+        </div>
+      </div>
+    </section>
 
     <header class="hero shell">
       <div class="hero-copy">

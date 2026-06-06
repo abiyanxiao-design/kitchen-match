@@ -820,6 +820,21 @@ def app_js():
     return send_from_directory(ROOT, "app.js")
 
 
+@app.get("/manifest.json")
+def manifest():
+    return send_from_directory(ROOT, "manifest.json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return send_from_directory(ROOT, "sw.js")
+
+
+@app.get("/icons/<path:filename>")
+def icons(filename):
+    return send_from_directory(os.path.join(ROOT, "icons"), filename)
+
+
 @app.get("/health")
 def health():
     return jsonify({"ok": True})
