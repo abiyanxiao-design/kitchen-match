@@ -168,7 +168,10 @@ function renderDashboard() {
     return;
   }
 
-  heroTitle.textContent = `${state.user.display_name}，今天做了什么？`;
+  heroTitle.innerHTML = `
+    <span class="hero-title-name">${escapeHtml(state.user.display_name)}</span>
+    <span class="hero-title-question">今天做了什么？</span>
+  `;
   updatesBadge.textContent = `${data.updates_count} 人已更新`;
   heroCapacity.textContent = `今天已有 ${data.updates_count} 人发了晚饭`;
   heroPoint1.textContent = data.hero_points[0] || "先写菜名";
