@@ -137,46 +137,23 @@ function ensureInstallBanner() {
   installBanner.hidden = true;
   installBanner.innerHTML = `
     <div class="home-install-hint__copy">
-      <p class="home-install-hint__title">📱 保存到手机桌面</p>
+      <p class="home-install-hint__title">📱 把 Kitchen Match 放到手机桌面</p>
+      <p class="home-install-hint__intro">以后不用再找网址，点一下桌面图标就能打开。</p>
       <div class="home-install-hint__steps">
-        <article class="home-install-hint__step">
-          <div class="home-install-hint__media" aria-hidden="true">
-            <span class="home-install-hint__media-label">Safari 分享按钮截图</span>
-            <span class="home-install-hint__media-file">/images/install-share-button.png</span>
-          </div>
-          <p class="home-install-hint__step-text">① 点击下方分享按钮</p>
-        </article>
-        <article class="home-install-hint__step">
-          <div class="home-install-hint__media" aria-hidden="true">
-            <span class="home-install-hint__media-label">“添加到主屏幕”截图</span>
-            <span class="home-install-hint__media-file">/images/install-add-to-home.png</span>
-          </div>
-          <p class="home-install-hint__step-text">② 点击「添加到主屏幕」</p>
-        </article>
+        <p class="home-install-hint__step-text">① 点击下方分享按钮 <span class="home-install-hint__emoji">↗️</span></p>
+        <p class="home-install-hint__step-text">② 选择 <span class="home-install-hint__emoji">🏠</span> 添加到主屏幕</p>
+        <p class="home-install-hint__step-text">③ 完成</p>
       </div>
     </div>
     <div class="home-install-hint__actions">
-      <button class="primary-button home-install-hint__install" type="button">安装 Kitchen Match</button>
       <button class="ghost-link home-install-hint__dismiss" type="button">知道了</button>
     </div>
   `;
   document.body.appendChild(installBanner);
-  installButton = installBanner.querySelector(".home-install-hint__install");
   dismissInstallButton = installBanner.querySelector(".home-install-hint__dismiss");
 
   dismissInstallButton.addEventListener("click", () => {
     dismissInstallBanner();
-  });
-
-  installButton.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) {
-      maybeShowInstallBanner();
-      return;
-    }
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
-    hideInstallBanner();
   });
 
   return installBanner;
@@ -200,15 +177,6 @@ function maybeShowInstallBanner() {
   }
   ensureInstallBanner();
 
-  if (deferredInstallPrompt) {
-    installButton.hidden = false;
-    installButton.textContent = "安装 Kitchen Match";
-    dismissInstallButton.textContent = "知道了";
-    installBanner.hidden = false;
-    return;
-  }
-
-  installButton.hidden = true;
   dismissInstallButton.textContent = "知道了";
   installBanner.hidden = false;
 }
