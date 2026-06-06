@@ -33,6 +33,7 @@ const jumpButtons = document.querySelectorAll("[data-jump]");
 const sameDishList = document.getElementById("same-dish-list");
 const sameStyleList = document.getElementById("same-style-list");
 const hotDishesList = document.getElementById("hot-dishes-list");
+const newDishesList = document.getElementById("new-dishes-list");
 const weeklyMatchList = document.getElementById("weekly-match-list");
 const monthlyProfileList = document.getElementById("monthly-profile-list");
 const sameDishCount = document.getElementById("same-dish-count");
@@ -349,6 +350,40 @@ function renderHotDishes(list) {
   });
 }
 
+function renderNewDishes(list) {
+  newDishesList.innerHTML = "";
+  if (!list.length) {
+    const card = document.createElement("article");
+    card.className = "new-dish-card new-dish-empty card";
+    card.innerHTML = `<p class="feed-note">今天的新灵感还在路上。</p>`;
+    newDishesList.appendChild(card);
+    return;
+  }
+
+  list.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "new-dish-card card";
+    const thumbMarkup = item.photo_public_url
+      ? `<div class="new-dish-thumb"><img src="${escapeHtml(item.photo_public_url)}" alt="${escapeHtml(item.dish)}" /></div>`
+      : `<div class="new-dish-thumb new-dish-thumb-empty">🆕</div>`;
+    const noteMarkup = item.note
+      ? `<p class="new-dish-note">${escapeHtml(item.note)}</p>`
+      : "";
+    card.innerHTML = `
+      ${thumbMarkup}
+      <div class="new-dish-body">
+        <div class="new-dish-head">
+          <strong>${escapeHtml(item.dish)}</strong>
+          <span class="ghost-pill">${escapeHtml(item.category)}</span>
+        </div>
+        <p class="new-dish-meta">${escapeHtml(item.display_name)} · ${escapeHtml(formatCreatedAt(item.created_at))}</p>
+        ${noteMarkup}
+      </div>
+    `;
+    newDishesList.appendChild(card);
+  });
+}
+
 function renderPublicHome() {
   const data = state.publicFeed;
   if (!data) {
@@ -366,6 +401,7 @@ function renderPublicHome() {
   heroPoint3.textContent = data.hero_points[2] || "撞菜和记录会在登录后开始";
   renderStarterStack(data.starters || []);
   renderHotDishes(data.today_hot_dishes || []);
+  renderNewDishes(data.today_new_dishes || []);
 
   sameDishHeading.textContent = "🥘 大家今晚吃了什么";
   sameStyleHeading.textContent = "最近大家在做什么";
@@ -407,6 +443,7 @@ function renderDashboard() {
   heroPoint3.textContent = data.hero_points[2] || "慢慢留下自己的记录";
   renderStarterStack(data.starters);
   renderHotDishes(data.today_hot_dishes || []);
+  renderNewDishes(data.today_new_dishes || []);
   sameDishHeading.textContent = "撞上同一道菜";
   sameStyleHeading.textContent = "撞上同一类菜";
 

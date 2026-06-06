@@ -379,6 +379,50 @@ def build_today_hot_dishes(posts):
     return hot_dishes[:5]
 
 
+def build_today_new_dishes(posts):
+    today = now_local().date()
+    today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
+    if not today_posts:
+        return []
+
+    seven_days_ago = now_local() - timedelta(days=7)
+    recent_history = {}
+    for row in posts:
+        created_at = coerce_datetime(row.get("created_at"))
+        if not created_at:
+            continue
+        created_local = created_at.astimezone(LOCAL_TIMEZONE)
+        dish_key = normalize_text(row["dish"])
+        if created_local.date() == today:
+            continue
+        if created_local < seven_days_ago:
+            continue
+        recent_history[dish_key] = True
+
+    grouped_today = defaultdict(list)
+    for row in today_posts:
+        grouped_today[normalize_text(row["dish"])].append(row)
+
+    new_dishes = []
+    for dish_key, group_rows in grouped_today.items():
+        if recent_history.get(dish_key):
+            continue
+        sorted_rows = sorted(group_rows, key=lambda row: coerce_datetime(row.get("created_at")) or now_utc(), reverse=True)
+        chosen = sorted_rows[0]
+        created_at = coerce_datetime(chosen.get("created_at"))
+        new_dishes.append({
+            "dish": chosen["dish"],
+            "category": chosen["category"],
+            "display_name": chosen["display_name"],
+            "photo_public_url": chosen.get("photo_public_url"),
+            "created_at": created_at.isoformat() if created_at else None,
+            "note": chosen.get("note") or "",
+        })
+
+    new_dishes.sort(key=lambda item: item["created_at"] or "", reverse=True)
+    return new_dishes[:5]
+
+
 def build_grouped_matches(rows, audience, key_field, label_field, current_lookup=None):
     grouped = defaultdict(list)
     for row in rows:
@@ -432,6 +476,7 @@ def build_public_feed(connection):
         "today_posts": [serialize_public_post(row) for row in today_posts[:8]],
         "recent_posts": [serialize_public_post(row) for row in recent_posts],
         "today_hot_dishes": build_today_hot_dishes(posts),
+        "today_new_dishes": build_today_new_dishes(posts),
         "starters": starters,
         "hero_points": ["先看看大家做了什么", "想发一顿时再登录", "撞菜和记录会在登录后开始"],
     }
@@ -563,6 +608,7 @@ def build_dashboard(connection, user):
         "same_dish_matches": same_dish_matches,
         "same_style_matches": same_style_matches,
         "today_hot_dishes": build_today_hot_dishes(posts),
+        "today_new_dishes": build_today_new_dishes(posts),
         "weekly_matches": weekly_matches,
         "monthly_profiles": monthly_profiles,
         "hero_points": ["先写菜名", "再看今天撞上谁", "慢慢留下自己的记录"],

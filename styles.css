@@ -955,6 +955,12 @@ textarea {
   margin-bottom: 0.35rem;
 }
 
+.section-subtext {
+  margin: -0.5rem 0 0.35rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .hot-dish-card {
   display: grid;
   grid-template-columns: 68px 1fr;
@@ -1016,6 +1022,82 @@ textarea {
   margin: 0.28rem 0 0;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.new-dishes-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.new-dish-card {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.72rem 0.8rem;
+}
+
+.new-dish-empty {
+  grid-template-columns: 1fr;
+}
+
+.new-dish-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at top left, rgba(255, 219, 153, 0.38), transparent 36%),
+    rgba(255, 252, 246, 0.96);
+  display: grid;
+  place-items: center;
+  color: var(--accent-deep);
+  font-size: 1.05rem;
+}
+
+.new-dish-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.new-dish-body {
+  min-width: 0;
+}
+
+.new-dish-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.new-dish-head strong {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.new-dish-meta,
+.new-dish-note {
+  margin: 0.28rem 0 0;
+  color: var(--muted);
+}
+
+.new-dish-meta {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.new-dish-note {
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .quick-post-card {
@@ -1423,6 +1505,32 @@ body.guest-mode [data-view="circle"] .section-head {
     grid-template-columns: 72px 1fr;
     gap: 0.68rem;
     padding: 0.68rem;
+  }
+
+  .section-subtext {
+    margin-top: -0.42rem;
+    font-size: 0.9rem;
+  }
+
+  .new-dish-card {
+    grid-template-columns: 52px 1fr;
+    gap: 0.68rem;
+    padding: 0.66rem 0.74rem;
+  }
+
+  .new-dish-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px;
+  }
+
+  .new-dish-head strong {
+    font-size: 0.94rem;
+  }
+
+  .new-dish-meta,
+  .new-dish-note {
+    font-size: 0.82rem;
   }
 
   .community-feed-media {
