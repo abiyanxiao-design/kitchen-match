@@ -221,13 +221,60 @@ textarea {
 
 .home-install-hint__copy {
   min-width: 0;
+  flex: 1;
 }
 
-.home-install-hint__text {
+.home-install-hint__title {
   margin: 0;
   color: var(--ink);
-  line-height: 1.45;
-  font-size: 0.92rem;
+  line-height: 1.2;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.home-install-hint__steps {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.home-install-hint__step {
+  min-width: 0;
+}
+
+.home-install-hint__media {
+  height: 54px;
+  border-radius: 14px;
+  border: 1px dashed rgba(112, 78, 43, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(247, 237, 226, 0.92));
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  text-align: center;
+}
+
+.home-install-hint__media-label {
+  color: var(--accent-deep);
+  font-size: 0.7rem;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.home-install-hint__media-file {
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.1;
+}
+
+.home-install-hint__step-text {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  line-height: 1.25;
+  font-size: 0.78rem;
 }
 
 .home-install-hint__actions {
@@ -235,6 +282,7 @@ textarea {
   align-items: center;
   gap: 0.55rem;
   flex-shrink: 0;
+  align-self: flex-end;
 }
 
 .home-install-hint__install {
@@ -1677,19 +1725,40 @@ body.guest-mode [data-view="circle"] .section-head {
 
   .home-install-hint {
     bottom: calc(80px + env(safe-area-inset-bottom));
-    padding: 0.82rem 0.88rem;
-    gap: 0.7rem;
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 0.72rem 0.8rem;
+    gap: 0.62rem;
+    align-items: flex-end;
   }
 
-  .home-install-hint__text {
-    font-size: 0.88rem;
+  .home-install-hint__title {
+    font-size: 0.9rem;
+  }
+
+  .home-install-hint__steps {
+    gap: 0.42rem;
+  }
+
+  .home-install-hint__media {
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .home-install-hint__media-label {
+    font-size: 0.66rem;
+  }
+
+  .home-install-hint__media-file {
+    font-size: 0.54rem;
+  }
+
+  .home-install-hint__step-text {
+    font-size: 0.72rem;
+    margin-top: 0.28rem;
   }
 
   .home-install-hint__actions {
-    width: 100%;
-    justify-content: space-between;
+    align-self: stretch;
+    justify-content: flex-end;
   }
 
   .eyebrow {

@@ -66,7 +66,6 @@ const sameStyleBlock = sameStyleList.closest(".inspiration-block");
 let toastTimerId = null;
 let deferredInstallPrompt = null;
 let installBanner = null;
-let installBannerText = null;
 let installButton = null;
 let dismissInstallButton = null;
 let installBannerDismissed = false;
@@ -138,7 +137,23 @@ function ensureInstallBanner() {
   installBanner.hidden = true;
   installBanner.innerHTML = `
     <div class="home-install-hint__copy">
-      <p class="home-install-hint__text">📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。</p>
+      <p class="home-install-hint__title">📱 保存到手机桌面</p>
+      <div class="home-install-hint__steps">
+        <article class="home-install-hint__step">
+          <div class="home-install-hint__media" aria-hidden="true">
+            <span class="home-install-hint__media-label">Safari 分享按钮截图</span>
+            <span class="home-install-hint__media-file">/images/install-share-button.png</span>
+          </div>
+          <p class="home-install-hint__step-text">① 点击下方分享按钮</p>
+        </article>
+        <article class="home-install-hint__step">
+          <div class="home-install-hint__media" aria-hidden="true">
+            <span class="home-install-hint__media-label">“添加到主屏幕”截图</span>
+            <span class="home-install-hint__media-file">/images/install-add-to-home.png</span>
+          </div>
+          <p class="home-install-hint__step-text">② 点击「添加到主屏幕」</p>
+        </article>
+      </div>
     </div>
     <div class="home-install-hint__actions">
       <button class="primary-button home-install-hint__install" type="button">安装 Kitchen Match</button>
@@ -146,7 +161,6 @@ function ensureInstallBanner() {
     </div>
   `;
   document.body.appendChild(installBanner);
-  installBannerText = installBanner.querySelector(".home-install-hint__text");
   installButton = installBanner.querySelector(".home-install-hint__install");
   dismissInstallButton = installBanner.querySelector(".home-install-hint__dismiss");
 
@@ -187,7 +201,6 @@ function maybeShowInstallBanner() {
   ensureInstallBanner();
 
   if (deferredInstallPrompt) {
-    installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
     installButton.hidden = false;
     installButton.textContent = "安装 Kitchen Match";
     dismissInstallButton.textContent = "知道了";
@@ -195,7 +208,6 @@ function maybeShowInstallBanner() {
     return;
   }
 
-  installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
   installButton.hidden = true;
   dismissInstallButton.textContent = "知道了";
   installBanner.hidden = false;
