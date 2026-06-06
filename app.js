@@ -17,10 +17,6 @@ const showRegisterButton = document.getElementById("show-register");
 const closeAuthButton = document.getElementById("close-auth");
 const authMessage = document.getElementById("auth-message");
 const logoutButton = document.getElementById("logout-button");
-const installBanner = document.getElementById("install-banner");
-const installBannerText = document.getElementById("install-banner-text");
-const installButton = document.getElementById("install-button");
-const dismissInstallButton = document.getElementById("dismiss-install");
 
 const heroTitle = document.getElementById("hero-title");
 const heroCapacity = document.getElementById("hero-capacity");
@@ -69,7 +65,10 @@ const sameStyleBlock = sameStyleList.closest(".inspiration-block");
 
 let toastTimerId = null;
 let deferredInstallPrompt = null;
-const INSTALL_BANNER_DISMISSED_KEY = "kitchen_home_hint_v2_dismissed";
+let installBanner = null;
+let installBannerText = null;
+let installButton = null;
+let dismissInstallButton = null;
 let installBannerDismissed = false;
 
 function escapeHtml(value) {
@@ -129,37 +128,63 @@ function isMobileBrowser() {
   return /android|iphone|ipad|ipod|mobile/i.test(ua);
 }
 
+function ensureInstallBanner() {
+  if (installBanner) {
+    return installBanner;
+  }
+
+  installBanner = document.createElement("aside");
+  installBanner.className = "home-install-hint";
+  installBanner.hidden = true;
+  installBanner.innerHTML = `
+    <div class="home-install-hint__copy">
+      <p class="home-install-hint__text">📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。</p>
+    </div>
+    <div class="home-install-hint__actions">
+      <button class="primary-button home-install-hint__install" type="button">安装 Kitchen Match</button>
+      <button class="ghost-link home-install-hint__dismiss" type="button">知道了</button>
+    </div>
+  `;
+  document.body.appendChild(installBanner);
+  installBannerText = installBanner.querySelector(".home-install-hint__text");
+  installButton = installBanner.querySelector(".home-install-hint__install");
+  dismissInstallButton = installBanner.querySelector(".home-install-hint__dismiss");
+
+  dismissInstallButton.addEventListener("click", () => {
+    dismissInstallBanner();
+  });
+
+  installButton.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) {
+      maybeShowInstallBanner();
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+  });
+
+  return installBanner;
+}
+
 function hideInstallBanner() {
   if (installBanner) {
     installBanner.hidden = true;
   }
 }
 
-function loadInstallBannerPreference() {
-  try {
-    installBannerDismissed = localStorage.getItem(INSTALL_BANNER_DISMISSED_KEY) === "1";
-  } catch (_error) {
-    installBannerDismissed = false;
-  }
-}
-
-function dismissInstallBanner(remember = false) {
-  installBannerDismissed = remember;
-  if (remember) {
-    try {
-      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, "1");
-    } catch (_error) {
-      // Ignore storage failures and just hide the banner for this session.
-    }
-  }
+function dismissInstallBanner() {
+  installBannerDismissed = true;
   hideInstallBanner();
 }
 
 function maybeShowInstallBanner() {
-  if (!installBanner || installBannerDismissed || isStandaloneMode() || !isMobileBrowser()) {
+  if (installBannerDismissed || isStandaloneMode() || !isMobileBrowser()) {
     hideInstallBanner();
     return;
   }
+  ensureInstallBanner();
 
   if (deferredInstallPrompt) {
     installBannerText.textContent = "📱 下次更快回来：点分享按钮，再选“添加到主屏幕”。";
@@ -897,7 +922,6 @@ async function refreshDashboardData({ silent = false } = {}) {
 }
 
 async function bootstrap() {
-  loadInstallBannerPreference();
   maybeShowInstallBanner();
   await refreshPublicFeedData().catch(() => {});
   try {
@@ -1051,19 +1075,7 @@ showRegisterButton.addEventListener("click", () => setAuthMode("register"));
 closeAuthButton.addEventListener("click", hideAuthScreen);
 if (dismissInstallButton) {
   dismissInstallButton.addEventListener("click", () => {
-    dismissInstallBanner(true);
-  });
-}
-if (installButton) {
-  installButton.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) {
-      maybeShowInstallBanner();
-      return;
-    }
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
-    hideInstallBanner();
+    dismissInstallBanner();
   });
 }
 loginForm.addEventListener("submit", submitLogin);

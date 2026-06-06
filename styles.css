@@ -196,6 +196,53 @@ textarea {
   align-items: center;
 }
 
+.home-install-hint {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 99999;
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 249, 241, 0.98);
+  border: 1px solid rgba(112, 78, 43, 0.12);
+  box-shadow: 0 20px 44px rgba(28, 20, 14, 0.18);
+}
+
+.home-install-hint[hidden] {
+  display: none !important;
+}
+
+.home-install-hint__copy {
+  min-width: 0;
+}
+
+.home-install-hint__text {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.home-install-hint__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.home-install-hint__install {
+  min-height: 2.7rem;
+  padding: 0.72rem 1rem;
+  font-size: 0.88rem;
+}
+
 .topbar-row {
   display: flex;
   justify-content: space-between;
@@ -1624,6 +1671,23 @@ body.guest-mode [data-view="circle"] .section-head {
   }
 
   .install-banner-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .home-install-hint {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    padding: 0.82rem 0.88rem;
+    gap: 0.7rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .home-install-hint__text {
+    font-size: 0.88rem;
+  }
+
+  .home-install-hint__actions {
     width: 100%;
     justify-content: space-between;
   }
