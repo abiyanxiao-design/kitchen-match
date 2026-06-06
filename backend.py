@@ -478,6 +478,7 @@ def health():
     return jsonify({"ok": True})
 
 
+@app.get("/me")
 @app.get("/api/me")
 def me():
     with pg_connection() as connection:
@@ -487,6 +488,7 @@ def me():
         return jsonify({"user": dict(user)})
 
 
+@app.post("/register")
 @app.post("/api/register")
 def register():
     payload = flask_request.get_json(force=True, silent=True) or {}
@@ -513,6 +515,7 @@ def register():
     return response
 
 
+@app.post("/login")
 @app.post("/api/login")
 def login():
     payload = flask_request.get_json(force=True, silent=True) or {}
@@ -537,6 +540,7 @@ def login():
     return response
 
 
+@app.post("/logout")
 @app.post("/api/logout")
 def logout():
     token = flask_request.cookies.get(SESSION_COOKIE)
@@ -548,6 +552,7 @@ def logout():
     return response
 
 
+@app.post("/posts")
 @app.post("/api/posts")
 def create_post():
     payload = flask_request.get_json(force=True, silent=True) or {}
@@ -590,6 +595,7 @@ def create_post():
     return jsonify({"ok": True})
 
 
+@app.get("/dashboard")
 @app.get("/api/dashboard")
 def dashboard():
     with pg_connection() as connection:
@@ -599,6 +605,7 @@ def dashboard():
         return jsonify(build_dashboard(connection, user))
 
 
+@app.get("/profile")
 @app.get("/api/profile")
 def profile():
     with pg_connection() as connection:
