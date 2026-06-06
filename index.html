@@ -127,43 +127,57 @@
 
         <div class="feed-layout">
           <div class="feed-column">
-            <div class="section-head">
-              <div>
-                <p class="section-kicker">社区灵感</p>
-                <h2>🔥 今日热门菜</h2>
+            <section class="inspiration-stream card">
+              <div class="stream-head">
+                <div>
+                  <p class="section-kicker">今日灵感流</p>
+                  <h2>今天大家都在吃什么？</h2>
+                  <p class="section-subtext">看看别人家的晚饭，也许就有你的下一顿灵感。</p>
+                </div>
               </div>
-            </div>
-            <div class="hot-dishes-list" id="hot-dishes-list"></div>
 
-            <div class="section-head">
-              <div>
-                <p class="section-kicker">新鲜灵感</p>
-                <h2>🆕 今日新菜</h2>
+              <div class="inspiration-block">
+                <div class="section-head inspiration-subhead">
+                  <div>
+                    <h3>🔥 今日热门菜</h3>
+                  </div>
+                </div>
+                <div class="hot-dishes-list" id="hot-dishes-list"></div>
               </div>
-            </div>
-            <p class="section-subtext">今天厨房里出现了一些新灵感。</p>
-            <div class="new-dishes-list" id="new-dishes-list"></div>
 
-            <div class="section-head">
-              <div>
-                <p class="section-kicker">第二步</p>
-                <h2>今天和你撞上的人</h2>
+              <div class="inspiration-block">
+                <div class="section-head inspiration-subhead">
+                  <div>
+                    <h3>🆕 今日新菜</h3>
+                  </div>
+                </div>
+                <div class="new-dishes-list" id="new-dishes-list"></div>
               </div>
-            </div>
-            <div class="match-group">
-              <div class="match-group-head">
-                <h3 id="same-dish-heading">撞上同一道菜</h3>
-                <span class="group-count" id="same-dish-count"></span>
+
+              <div class="inspiration-block">
+                <div class="section-head inspiration-subhead">
+                  <div>
+                    <h3 id="same-dish-heading">🥘 大家今晚吃了什么</h3>
+                  </div>
+                </div>
+                <div class="match-group-head stream-count-head">
+                  <span class="group-count" id="same-dish-count"></span>
+                </div>
+                <div class="feed-list" id="same-dish-list"></div>
               </div>
-              <div class="feed-list" id="same-dish-list"></div>
-            </div>
-            <div class="match-group">
-              <div class="match-group-head">
-                <h3 id="same-style-heading">撞上同一类菜</h3>
-                <span class="group-count" id="same-style-count"></span>
+
+              <div class="inspiration-block">
+                <div class="section-head inspiration-subhead">
+                  <div>
+                    <h3 id="same-style-heading">最近大家在做什么</h3>
+                  </div>
+                </div>
+                <div class="match-group-head stream-count-head">
+                  <span class="group-count" id="same-style-count"></span>
+                </div>
+                <div class="feed-list" id="same-style-list"></div>
               </div>
-              <div class="feed-list" id="same-style-list"></div>
-            </div>
+            </section>
           </div>
 
           <aside class="feed-side">
