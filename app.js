@@ -360,15 +360,28 @@ function renderPreviewableImage(url, alt, className = "") {
   return `<img class="${className} previewable-image" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" data-preview-src="${escapeHtml(url)}" data-preview-alt="${escapeHtml(alt)}" />`;
 }
 
-function renderCuisineInfo(info, compact = false) {
+function renderCuisineInfoBadge(info) {
   if (!info) {
     return "";
   }
-  const story = String(info.story || "").trim();
-  const shortStory = compact
-    ? story.split("。")[0].trim().replace(/[。！？]$/, "")
-    : story;
-  return `<p class="cuisine-line${compact ? " cuisine-line-compact" : ""}">${escapeHtml(info.label)} · ${escapeHtml(shortStory)}</p>`;
+  return `
+    <button
+      class="cuisine-badge"
+      type="button"
+      data-cuisine-story="${escapeHtml(info.story || "")}"
+      data-cuisine-label="${escapeHtml(info.label || "")}"
+    >
+      ${escapeHtml(info.label)}
+    </button>
+  `;
+}
+
+function showCuisineStory(info, prefix = "") {
+  if (!info) {
+    return;
+  }
+  const lead = prefix ? `${prefix}：` : `${info.label}：`;
+  showToast(`${lead}${info.story}`, "accent");
 }
 
 function countSubmittedDishes(rawValue) {
@@ -578,7 +591,7 @@ function renderGroupedMatchCards(target, groups, emptyText) {
               <span class="ghost-pill">${escapeHtml(post.created_day || post.audience)}</span>
             </div>
             <p class="match-detail-dish">${escapeHtml(post.dish)}</p>
-            ${renderCuisineInfo(post.cuisine_info, true)}
+            ${renderCuisineInfoBadge(post.cuisine_info)}
             ${imageMarkup ? `<div class="match-detail-thumb">${imageMarkup}</div>` : ""}
             <p class="feed-note">${escapeHtml(post.note || "今天也做了这一顿。")}</p>
           </article>
@@ -687,7 +700,7 @@ function renderPublicFeedCards(target, list, emptyText) {
         <div class="community-feed-subline">
           <span class="ghost-pill">${escapeHtml(post.category)}</span>
         </div>
-        ${renderCuisineInfo(post.cuisine_info, true)}
+        ${renderCuisineInfoBadge(post.cuisine_info)}
         ${noteMarkup}
       </div>
     `;
@@ -723,7 +736,7 @@ function renderHotDishes(list) {
           <span class="ghost-pill">${escapeHtml(item.category)}</span>
         </div>
         <p class="hot-dish-meta">${escapeHtml(`${item.count} 人今天做了`)}</p>
-        ${renderCuisineInfo(item.cuisine_info, true)}
+        ${renderCuisineInfoBadge(item.cuisine_info)}
         <p class="hot-dish-users">${escapeHtml(names)}${moreText ? `<span>${escapeHtml(moreText)}</span>` : ""}</p>
       </div>
     `;
@@ -758,7 +771,7 @@ function renderNewDishes(list) {
           <span class="ghost-pill">${escapeHtml(item.category)}</span>
         </div>
         <p class="new-dish-meta">${escapeHtml(item.display_name)} · ${escapeHtml(formatCreatedAt(item.created_at))}</p>
-        ${renderCuisineInfo(item.cuisine_info, true)}
+        ${renderCuisineInfoBadge(item.cuisine_info)}
         ${noteMarkup}
       </div>
     `;
@@ -910,7 +923,7 @@ function renderProfile() {
       <div class="timeline-day">${escapeHtml(item.day)}</div>
       <div class="timeline-body">
         <strong>${escapeHtml(item.dish)}</strong>
-        ${renderCuisineInfo(item.cuisine_info, true)}
+        ${renderCuisineInfoBadge(item.cuisine_info)}
         ${imageMarkup}
         <p>${escapeHtml(item.note)}</p>
       </div>
@@ -1140,6 +1153,9 @@ async function postKitchenCard() {
     revealMatchResults();
     scrollToMatchResults();
     showToast(getPrimaryMatchSummary(state.dashboard), "accent");
+    (payload.created_cuisine_info || []).slice(0, 2).forEach((item) => {
+      showCuisineStory(item.cuisine_info, `${item.cuisine_info?.label || "🍚 家常菜"} 你今天做的是 ${item.dish}`);
+    });
     if (payload.warning) {
       showToast(payload.warning, "warning");
     }
@@ -1223,10 +1239,14 @@ document.addEventListener("click", (event) => {
     return;
   }
   const image = target.closest("img[data-preview-src]");
-  if (!image) {
+  if (image) {
+    openImageLightbox(image.dataset.previewSrc, image.dataset.previewAlt || image.getAttribute("alt") || "");
     return;
   }
-  openImageLightbox(image.dataset.previewSrc, image.dataset.previewAlt || image.getAttribute("alt") || "");
+  const cuisineBadge = target.closest("[data-cuisine-story]");
+  if (cuisineBadge instanceof HTMLElement) {
+    showToast(`${cuisineBadge.dataset.cuisineLabel}：${cuisineBadge.dataset.cuisineStory}`, "accent");
+  }
 });
 
 activateView("feed");
