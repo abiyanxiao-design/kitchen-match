@@ -916,6 +916,7 @@ def build_public_feed(connection):
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     recent_posts = posts[:12]
+    today_user_count = len({row["display_name"] for row in today_posts if row.get("display_name")})
 
     starters = [
         {
@@ -927,6 +928,8 @@ def build_public_feed(connection):
 
     return {
         "updates_count": len(recent_posts),
+        "today_posts_count": len(today_posts),
+        "today_users_count": today_user_count,
         "today_posts": [serialize_public_post(row, dish_dictionary) for row in today_posts[:8]],
         "recent_posts": [serialize_public_post(row, dish_dictionary) for row in recent_posts],
         "today_hot_dishes": build_today_hot_dishes(posts, dish_dictionary),
@@ -1319,7 +1322,9 @@ def me():
 
 
 @app.get("/public-feed")
+@app.get("/public_feed")
 @app.get("/api/public-feed")
+@app.get("/api/public_feed")
 def public_feed():
     with pg_connection() as connection:
         return jsonify(build_public_feed(connection))

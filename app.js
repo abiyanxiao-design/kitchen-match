@@ -873,11 +873,19 @@ function renderHome() {
   const communitySourcePosts = getHomeCommunityPosts(publicData);
   const todayPosts = getCommunityTodayPosts(publicData);
   const latestPosts = communitySourcePosts.slice(0, 3);
-  const peopleCount = getCommunityPeopleCount(todayPosts.length ? todayPosts : communitySourcePosts);
+  const todayPostsCount = Number(publicData.today_posts_count || 0);
+  const todayUsersCount = Number(publicData.today_users_count || 0);
 
-  updatesBadge.textContent = peopleCount
-    ? `${peopleCount} 人更新`
-    : `${communitySourcePosts.length} 道更新`;
+  if (todayPostsCount > 0) {
+    updatesBadge.textContent = todayUsersCount > 0
+      ? `${todayUsersCount} 人更新`
+      : `${todayPostsCount} 道更新`;
+  } else if (communitySourcePosts.length > 0) {
+    updatesBadge.textContent = "最近有人更新了餐桌";
+  } else {
+    updatesBadge.textContent = "还没有人更新";
+  }
+
   homeLatestCount.textContent = communitySourcePosts.length
     ? `${communitySourcePosts.length} 道菜`
     : "";
@@ -1026,7 +1034,7 @@ async function refreshAppData() {
   const [dashboard, profile, publicFeed] = await Promise.all([
     fetchJson("/api/dashboard"),
     fetchJson("/api/profile"),
-    fetchJson("/api/public-feed"),
+    fetchJson("/api/public_feed"),
   ]);
   state.dashboard = dashboard;
   state.profile = profile;
@@ -1037,7 +1045,7 @@ async function refreshAppData() {
 }
 
 async function refreshPublicFeedData() {
-  const publicFeed = await fetchJson("/api/public-feed");
+  const publicFeed = await fetchJson("/api/public_feed");
   state.publicFeed = publicFeed;
   renderHome();
   renderCommunity();
