@@ -111,6 +111,49 @@ def split_dishes(value):
     return ordered
 
 
+CUISINE_RULES = [
+    (["宫保鸡丁"], ("川菜", "🏮 川菜", "宫保鸡丁是带一点荔枝口酸甜的小炒，在川菜里很有代表性。")),
+    (["回锅肉"], ("川菜", "🏮 川菜", "回锅肉里的“回锅”，意思是熟肉再次下锅，是川菜里很有代表性的家常菜。")),
+    (["麻婆豆腐"], ("川菜", "🏮 川菜", "麻婆豆腐是川菜里很经典的一道下饭菜，麻辣和豆香都很鲜明。")),
+    (["水煮鱼"], ("川菜", "🏮 川菜", "水煮鱼名字里有“水煮”，真正让人记住的是川菜那种麻辣鲜香的层次。")),
+    (["辣椒炒肉"], ("湘菜", "🌶️ 湘菜", "辣椒炒肉是很多人一提到湘菜就会想到的家常代表，讲究辣椒和肉香一起出味。")),
+    (["剁椒鱼头"], ("湘菜", "🌶️ 湘菜", "剁椒鱼头把鲜辣和蒸鱼的香气放在一起，是湘菜里很有记忆点的一道菜。")),
+    (["白切鸡"], ("粤菜", "🥢 粤菜", "白切鸡看起来简单，真正好吃往往靠的是鸡味本身和火候拿捏。")),
+    (["叉烧"], ("粤菜", "🥢 粤菜", "叉烧常见于粤式烧味里，甜咸交织的酱香很容易让人记住。")),
+    (["肠粉"], ("粤菜", "🥢 粤菜", "肠粉是很多人熟悉的粤式早点，滑嫩口感本身就是它的招牌。")),
+    (["红烧肉"], ("江浙/家常经典", "🍯 家常经典", "红烧肉几乎家家都有自己的做法，浓油赤酱是很多人的餐桌记忆。")),
+    (["西湖醋鱼"], ("浙菜", "🌊 浙菜", "西湖醋鱼是很多人认识浙菜时最先听到的一道菜，酸甜口很有辨识度。")),
+    (["小笼包"], ("江南点心", "🥟 江南点心", "小笼包最让人期待的是薄皮里那一口汤汁，是江南点心里的经典。")),
+    (["锅包肉"], ("东北菜", "❄️ 东北菜", "锅包肉外酥里嫩、酸甜分明，是东北菜里很有存在感的一道经典。")),
+    (["地三鲜"], ("东北菜", "❄️ 东北菜", "地三鲜把土豆、茄子和青椒放在一起，是很多人记忆里的东北家常味。")),
+    (["番茄炒蛋"], ("家常经典", "🍅 家常经典", "番茄炒蛋几乎是很多人学做饭时最早会做的一道菜，简单却总能吃得舒服。")),
+    (["炒青菜"], ("家常小炒", "🥬 家常小炒", "炒青菜看起来简单，真正讲究的是火候和青菜下锅那一瞬间的清香。")),
+    (["米饭"], ("主食", "🍚 主食", "米饭是很多家庭晚饭里最安静也最重要的一部分，配什么菜都很自然。")),
+    (["面条"], ("主食", "🍜 主食", "面条在很多人的餐桌上既方便又有安慰感，热热一碗就很像回家。")),
+    (["斑点虾"], ("海鲜时令", "🦐 海鲜时令", "斑点虾很有时令感，很多人一看到它就会想到当季海鲜最鲜的时候。")),
+    (["酸菜鱼"], ("川渝风味", "🐟 川渝风味", "酸菜鱼把酸香和鱼肉的鲜味放在一起，是川渝风味里很容易让人上瘾的一道菜。")),
+    (["火锅"], ("火锅/锅物", "🍲 火锅/锅物", "火锅很多时候不只是吃什么，更像是一群人围着一口锅慢慢聊起来。")),
+    (["饺子"], ("北方家常/节日食物", "🥟 北方家常", "饺子常常和团圆、过节连在一起，也是很多北方家庭最熟悉的味道。")),
+]
+
+
+def build_cuisine_info(dish):
+    normalized = normalize_text(dish)
+    for keywords, payload in CUISINE_RULES:
+        if any(normalize_text(keyword) in normalized for keyword in keywords):
+            cuisine, label, story = payload
+            return {
+                "cuisine": cuisine,
+                "label": label,
+                "story": story,
+            }
+    return {
+        "cuisine": "家常菜",
+        "label": "🍚 家常菜",
+        "story": "这是一道很适合记录在日常餐桌里的菜。",
+    }
+
+
 def pg_connection():
     if psycopg is None or dict_row is None:
         raise RuntimeError("psycopg is not installed")
@@ -340,6 +383,7 @@ def serialize_match(row, audience, current_post):
         "audience": audience,
         "comments": comments,
         "photo_data_url": row["photo_public_url"],
+        "cuisine_info": build_cuisine_info(row["dish"]),
     }
 
 
@@ -376,6 +420,7 @@ def serialize_current_post(row):
         "category": row["category"],
         "day": local_day_label(row.get("created_at")),
         "photo_data_url": row.get("photo_public_url"),
+        "cuisine_info": build_cuisine_info(row["dish"]),
     }
 
 
@@ -397,6 +442,7 @@ def serialize_public_post(row):
         "photo_public_url": row.get("photo_public_url"),
         "created_at": created_at.isoformat() if created_at else None,
         "category": row["category"],
+        "cuisine_info": build_cuisine_info(row["dish"]),
     }
 
 
@@ -424,6 +470,7 @@ def build_today_hot_dishes(posts):
             "user_names": unique_names[:3],
             "remaining_user_count": max(0, len(unique_names) - 3),
             "thumbnail": thumbnail,
+            "cuisine_info": build_cuisine_info(sorted_rows[0]["dish"]),
         })
 
     hot_dishes.sort(key=lambda item: (-item["count"], item["dish"]))
@@ -468,6 +515,7 @@ def build_today_new_dishes(posts):
             "photo_public_url": chosen.get("photo_public_url"),
             "created_at": created_at.isoformat() if created_at else None,
             "note": chosen.get("note") or "",
+            "cuisine_info": build_cuisine_info(chosen["dish"]),
         })
 
     new_dishes.sort(key=lambda item: item["created_at"] or "", reverse=True)
@@ -733,6 +781,7 @@ def build_profile(connection, user):
             "dish": row["dish"],
             "note": row["note"] or "今天记下了这顿饭。",
             "photo_public_url": row.get("photo_public_url"),
+            "cuisine_info": build_cuisine_info(row["dish"]),
         }
         for row in user_posts[:12]
     ]

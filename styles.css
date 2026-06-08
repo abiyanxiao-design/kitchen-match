@@ -1296,6 +1296,20 @@ body.lightbox-open {
   overflow: hidden;
 }
 
+.cuisine-line {
+  margin: 0.42rem 0 0;
+  color: var(--accent-deep);
+  line-height: 1.45;
+  font-size: 0.84rem;
+}
+
+.cuisine-line-compact {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .hot-dishes-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
