@@ -611,6 +611,69 @@ def delete_session(connection, token):
     connection.commit()
 
 
+def get_post_like_state(connection, post_id, viewer_user_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            select
+                count(*)::bigint as like_count,
+                bool_or(user_id = %s) as liked_by_me
+            from likes
+            where post_id = %s
+            """,
+            (viewer_user_id, post_id),
+        )
+        row = cursor.fetchone() or {}
+    return {
+        "like_count": int(row.get("like_count") or 0),
+        "liked_by_me": bool(row.get("liked_by_me")),
+    }
+
+
+def toggle_post_like(connection, post_id, viewer_user_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            select id, user_id
+            from posts
+            where id = %s
+            """,
+            (post_id,),
+        )
+        post = cursor.fetchone()
+        if not post:
+            return None, "这道菜好像已经不见了。"
+        if post["user_id"] == viewer_user_id:
+            return None, "这是你自己的菜，先留给别人来赞你吧。"
+
+        cursor.execute(
+            """
+            select id
+            from likes
+            where post_id = %s and user_id = %s
+            """,
+            (post_id, viewer_user_id),
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute(
+                "delete from likes where post_id = %s and user_id = %s",
+                (post_id, viewer_user_id),
+            )
+        else:
+            cursor.execute(
+                """
+                insert into likes (post_id, user_id)
+                values (%s, %s)
+                on conflict (post_id, user_id) do nothing
+                """,
+                (post_id, viewer_user_id),
+            )
+    connection.commit()
+    return get_post_like_state(connection, post_id, viewer_user_id), None
+
+
 def parse_data_url(data_url):
     match = re.match(r"^data:(?P<mime>[\w/+.-]+);base64,(?P<data>.+)$", data_url or "")
     if not match:
@@ -688,15 +751,32 @@ def serialize_match(row, audience, current_post, dish_dictionary=None):
     }
 
 
-def fetch_posts(connection):
+def fetch_posts(connection, viewer_user_id=None):
+    viewer_id = int(viewer_user_id or 0)
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            select posts.*, users.display_name
+            select
+                posts.*,
+                users.display_name,
+                coalesce(like_counts.like_count, 0) as like_count,
+                case
+                    when %s > 0 and viewer_likes.user_id is not null then true
+                    else false
+                end as liked_by_me
             from posts
             join users on users.id = posts.user_id
+            left join (
+                select post_id, count(*)::bigint as like_count
+                from likes
+                group by post_id
+            ) as like_counts on like_counts.post_id = posts.id
+            left join likes as viewer_likes
+                on viewer_likes.post_id = posts.id
+                and viewer_likes.user_id = %s
             order by posts.created_at desc
-            """
+            """,
+            (viewer_id, viewer_id),
         )
         return cursor.fetchall()
 
@@ -713,9 +793,17 @@ def recent_local_day_range(days=7):
     return now_local() - timedelta(days=days)
 
 
-def serialize_current_post(row, dish_dictionary=None):
+def serialize_like_state(row):
     return {
+        "like_count": int(row.get("like_count") or 0),
+        "liked_by_me": bool(row.get("liked_by_me")),
+    }
+
+
+def serialize_current_post(row, dish_dictionary=None):
+    payload = {
         "id": row["id"],
+        "user_id": row["user_id"],
         "dish": row["dish"],
         "note": row["note"] or "",
         "category": row["category"],
@@ -723,6 +811,8 @@ def serialize_current_post(row, dish_dictionary=None):
         "photo_data_url": row.get("photo_public_url"),
         "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
     }
+    payload.update(serialize_like_state(row))
+    return payload
 
 
 def serialize_matched_post(row, audience, current_post=None, dish_dictionary=None):
@@ -731,12 +821,15 @@ def serialize_matched_post(row, audience, current_post=None, dish_dictionary=Non
     payload["user_id"] = row["user_id"]
     payload["category"] = row["category"]
     payload["created_day"] = local_day_label(row.get("created_at"))
+    payload.update(serialize_like_state(row))
     return payload
 
 
 def serialize_public_post(row, dish_dictionary=None):
     created_at = coerce_datetime(row.get("created_at"))
-    return {
+    payload = {
+        "id": row["id"],
+        "user_id": row["user_id"],
         "display_name": row["display_name"],
         "dish": row["dish"],
         "note": row["note"] or "",
@@ -745,6 +838,8 @@ def serialize_public_post(row, dish_dictionary=None):
         "category": row["category"],
         "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
     }
+    payload.update(serialize_like_state(row))
+    return payload
 
 
 def build_today_hot_dishes(posts, dish_dictionary=None):
@@ -764,14 +859,19 @@ def build_today_hot_dishes(posts, dish_dictionary=None):
                 unique_names.append(name)
 
         thumbnail = next((row.get("photo_public_url") for row in sorted_rows if row.get("photo_public_url")), None)
+        chosen = sorted_rows[0]
         hot_dishes.append({
-            "dish": sorted_rows[0]["dish"],
-            "category": sorted_rows[0]["category"],
+            "post_id": chosen["id"],
+            "user_id": chosen["user_id"],
+            "dish": chosen["dish"],
+            "category": chosen["category"],
             "count": len(sorted_rows),
             "user_names": unique_names[:3],
             "remaining_user_count": max(0, len(unique_names) - 3),
             "thumbnail": thumbnail,
-            "cuisine_info": build_cuisine_info(sorted_rows[0]["dish"], dish_dictionary),
+            "cuisine_info": build_cuisine_info(chosen["dish"], dish_dictionary),
+            "like_count": int(chosen.get("like_count") or 0),
+            "liked_by_me": bool(chosen.get("liked_by_me")),
         })
 
     hot_dishes.sort(key=lambda item: (-item["count"], item["dish"]))
@@ -810,6 +910,8 @@ def build_today_new_dishes(posts, dish_dictionary=None):
         chosen = sorted_rows[0]
         created_at = coerce_datetime(chosen.get("created_at"))
         new_dishes.append({
+            "post_id": chosen["id"],
+            "user_id": chosen["user_id"],
             "dish": chosen["dish"],
             "category": chosen["category"],
             "display_name": chosen["display_name"],
@@ -817,6 +919,8 @@ def build_today_new_dishes(posts, dish_dictionary=None):
             "created_at": created_at.isoformat() if created_at else None,
             "note": chosen.get("note") or "",
             "cuisine_info": build_cuisine_info(chosen["dish"], dish_dictionary),
+            "like_count": int(chosen.get("like_count") or 0),
+            "liked_by_me": bool(chosen.get("liked_by_me")),
         })
 
     new_dishes.sort(key=lambda item: item["created_at"] or "", reverse=True)
@@ -910,8 +1014,8 @@ def build_grouped_matches(rows, audience, key_field, label_field, current_lookup
     return groups
 
 
-def build_public_feed(connection):
-    posts = fetch_posts(connection)
+def build_public_feed(connection, user=None):
+    posts = fetch_posts(connection, user["id"] if user else None)
     dish_dictionary = load_dish_dictionary(connection)
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
@@ -940,7 +1044,7 @@ def build_public_feed(connection):
 
 
 def build_dashboard(connection, user):
-    posts = fetch_posts(connection)
+    posts = fetch_posts(connection, user["id"])
     dish_dictionary = load_dish_dictionary(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
     today = now_today_local().date()
@@ -1085,7 +1189,7 @@ def build_dashboard(connection, user):
 
 
 def build_profile(connection, user):
-    posts = fetch_posts(connection)
+    posts = fetch_posts(connection, user["id"])
     dish_dictionary = load_dish_dictionary(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
 
@@ -1327,7 +1431,8 @@ def me():
 @app.get("/api/public_feed")
 def public_feed():
     with pg_connection() as connection:
-        return jsonify(build_public_feed(connection))
+        user = current_user(connection)
+        return jsonify(build_public_feed(connection, user))
 
 
 @app.get("/api/admin/unknown-dishes")
@@ -1501,6 +1606,33 @@ def create_post():
             {"dish": dish, "cuisine_info": build_cuisine_info(dish, dish_dictionary)}
             for dish in dishes[:2]
         ],
+    })
+
+
+@app.post("/like_post")
+@app.post("/api/like_post")
+def like_post():
+    payload = flask_request.get_json(force=True, silent=True) or {}
+    try:
+        post_id = int(payload.get("post_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "请先选中一道菜再点赞"}), 400
+
+    with pg_connection() as connection:
+        user = current_user(connection)
+        if not user:
+            return jsonify({"error": "请先登录，再给别人点赞"}), 401
+
+        like_state, error_message = toggle_post_like(connection, post_id, user["id"])
+        if error_message:
+            status = 404 if "不见了" in error_message else 400
+            return jsonify({"error": error_message}), status
+
+    return jsonify({
+        "ok": True,
+        "post_id": post_id,
+        "like_count": like_state["like_count"],
+        "liked_by_me": like_state["liked_by_me"],
     })
 
 

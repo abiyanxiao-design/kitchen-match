@@ -67,11 +67,11 @@ let imageLightbox = null;
 let serviceWorkerRefreshTriggered = false;
 let discoveryModal = null;
 const DISCOVERY_FEEDBACKS = [
-  "这顿饭一记下来，今天就更有味道了。",
-  "你家餐桌上的这一口，很值得被留下来。",
-  "这种日常里的小发现，最容易慢慢攒成自己的味道。",
-  "今天这顿饭不只是吃掉了，也被好好记住了。",
-  "餐桌上这些熟悉的味道，慢慢就会变成很珍贵的记录。",
+  "👏 今天又认真吃了一顿。",
+  "🍚 厨房有烟火气的一天。",
+  "🥢 这顿饭已经被好好记下了。",
+  "🏠 今天的餐桌更新完成。",
+  "🌿 照顾自己，从一顿饭开始。",
 ];
 
 function escapeHtml(value) {
@@ -330,6 +330,13 @@ function getRandomDiscoveryFeedback() {
   return DISCOVERY_FEEDBACKS[Math.floor(Math.random() * DISCOVERY_FEEDBACKS.length)];
 }
 
+function parseSubmittedDishes(rawValue) {
+  return String(rawValue || "")
+    .split(/[\n,，]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function ensureDiscoveryModal() {
   if (discoveryModal) {
     return discoveryModal;
@@ -365,27 +372,71 @@ function closeDiscoveryModal() {
   document.body.classList.remove("modal-open");
 }
 
-function showDiscoveryModal(items) {
-  if (!items?.length) {
+function buildRewardMatchFeedback(dashboard, createdDishes) {
+  const normalizedCreated = new Set((createdDishes || []).map((dish) => normalizeDishKey(dish)).filter(Boolean));
+  const sameDishGroups = dashboard?.grouped_matches?.same_dish || groupLegacyMatches(dashboard?.same_dish_matches || [], "same_dish");
+  const sameStyleGroups = dashboard?.grouped_matches?.same_style || groupLegacyMatches(dashboard?.same_style_matches || [], "same_style");
+
+  const directMatch = sameDishGroups.find((group) => normalizedCreated.has(normalizeDishKey(group.label)));
+  if (directMatch) {
+    return `🎯 你和 ${directMatch.count} 个人都吃了${directMatch.label}`;
+  }
+
+  if (sameStyleGroups.length) {
+    const nearby = sameStyleGroups[0];
+    return `🥢 今天有人也吃了类似的${nearby.label}`;
+  }
+
+  return "今天还没人和你撞上，不过你已经留下了这一顿。";
+}
+
+function buildRewardRecordLine(createdDishes) {
+  if (createdDishes.length <= 1) {
+    return `已帮你记下：${createdDishes[0] || "这一顿"}`;
+  }
+  return `已帮你记下 ${createdDishes.length} 道菜：${createdDishes.join("、")}`;
+}
+
+function showDiscoveryModal({ createdDishes = [], cuisineItems = [], dashboard = null } = {}) {
+  if (!createdDishes.length && !cuisineItems.length) {
     return;
   }
   const modal = ensureDiscoveryModal();
   const body = modal.querySelector(".discovery-modal__body");
   const feedback = getRandomDiscoveryFeedback();
+  const rewardMatchFeedback = buildRewardMatchFeedback(dashboard, createdDishes);
+  const cultureItems = cuisineItems.slice(0, 2);
   body.innerHTML = `
-    <div class="discovery-modal__list">
-      ${items.slice(0, 2).map((item) => `
-        <article class="discovery-modal__item">
-          <strong class="discovery-modal__dish">${escapeHtml(item.dish)}</strong>
-          <p class="discovery-modal__label">${escapeHtml(item.cuisine_info?.label || "🍚 其他家常")}</p>
-          <p class="discovery-modal__story">${escapeHtml(item.cuisine_info?.story || "")}</p>
-        </article>
-      `).join("")}
+    <div class="discovery-modal__section">
+      <p class="discovery-modal__section-label">记录结果</p>
+      <p class="discovery-modal__summary">${escapeHtml(buildRewardRecordLine(createdDishes))}</p>
     </div>
+    <div class="discovery-modal__section">
+      <p class="discovery-modal__section-label">撞菜反馈</p>
+      <p class="discovery-modal__summary">${escapeHtml(rewardMatchFeedback)}</p>
+    </div>
+    ${cultureItems.length ? `
+      <div class="discovery-modal__section">
+        <p class="discovery-modal__section-label">文化发现</p>
+        <div class="discovery-modal__list">
+          ${cultureItems.map((item) => `
+            <article class="discovery-modal__item">
+              <strong class="discovery-modal__dish">${escapeHtml(item.dish)}</strong>
+              <p class="discovery-modal__label">${escapeHtml(item.cuisine_info?.label || "🍚 其他家常")}</p>
+              <p class="discovery-modal__story">${escapeHtml(item.cuisine_info?.story || "")}</p>
+            </article>
+          `).join("")}
+        </div>
+      </div>
+    ` : ""}
     <p class="discovery-modal__feedback">${escapeHtml(feedback)}</p>
   `;
   modal.hidden = false;
   document.body.classList.add("modal-open");
+}
+
+function normalizeDishKey(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function ensureImageLightbox() {
@@ -452,12 +503,126 @@ function renderCuisineInfoBadge(info) {
   `;
 }
 
+function getPostId(post) {
+  const rawId = post?.id ?? post?.post_id;
+  const parsed = Number(rawId);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getPostOwnerId(post) {
+  const rawId = post?.user_id;
+  const parsed = Number(rawId);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function renderLikeButton(post, options = {}) {
+  const postId = getPostId(post);
+  const ownerId = getPostOwnerId(post);
+  const likeCount = Number(post?.like_count || 0);
+  const likedByMe = Boolean(post?.liked_by_me);
+  const isOwnPost = Boolean(state.user && ownerId && Number(state.user.id) === ownerId);
+  const isCompact = options.compact === true;
+  const classes = ["like-button"];
+  if (isCompact) {
+    classes.push("like-button--compact");
+  }
+  if (likedByMe) {
+    classes.push("is-liked");
+  }
+  if (isOwnPost) {
+    classes.push("is-disabled");
+  }
+
+  const label = likedByMe ? `👍 已赞 ${likeCount}` : `👍 ${likeCount}`;
+  if (!postId) {
+    return `<span class="${classes.join(" ")} is-disabled">${escapeHtml(label)}</span>`;
+  }
+
+  return `
+    <button
+      class="${classes.join(" ")}"
+      type="button"
+      data-like-post-id="${postId}"
+      ${isOwnPost ? "disabled" : ""}
+      aria-pressed="${likedByMe ? "true" : "false"}"
+    >
+      ${escapeHtml(label)}
+    </button>
+  `;
+}
+
 function showCuisineStory(info, prefix = "") {
   if (!info) {
     return;
   }
   const lead = prefix ? `${prefix}：` : `${info.label}：`;
   showToast(`${lead}${info.story}`, "accent");
+}
+
+function updateLikeStateInList(list, postId, likeCount, likedByMe) {
+  if (!Array.isArray(list)) {
+    return;
+  }
+  list.forEach((item) => {
+    if (getPostId(item) === postId) {
+      item.like_count = likeCount;
+      item.liked_by_me = likedByMe;
+    }
+  });
+}
+
+function applyLikeStateToState(postId, likeCount, likedByMe) {
+  if (state.publicFeed) {
+    updateLikeStateInList(state.publicFeed.today_posts, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.publicFeed.recent_posts, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.publicFeed.today_hot_dishes, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.publicFeed.today_new_dishes, postId, likeCount, likedByMe);
+  }
+
+  if (state.dashboard) {
+    updateLikeStateInList(state.dashboard.current_user_posts, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.dashboard.same_dish_matches, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.dashboard.same_style_matches, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.dashboard.matched_posts, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.dashboard.today_hot_dishes, postId, likeCount, likedByMe);
+    updateLikeStateInList(state.dashboard.today_new_dishes, postId, likeCount, likedByMe);
+    ["same_dish", "same_style"].forEach((groupKey) => {
+      const groups = state.dashboard.grouped_matches?.[groupKey];
+      if (Array.isArray(groups)) {
+        groups.forEach((group) => updateLikeStateInList(group.posts, postId, likeCount, likedByMe));
+      }
+    });
+  }
+
+  if (state.profile) {
+    updateLikeStateInList(state.profile.timeline, postId, likeCount, likedByMe);
+  }
+}
+
+async function handleLikeClick(postId) {
+  if (!state.user) {
+    showAuthScreen("login", "想给这道菜点个赞，先登录或注册。");
+    return;
+  }
+
+  try {
+    const payload = await fetchJson("/api/like_post", {
+      method: "POST",
+      body: JSON.stringify({ post_id: postId }),
+    });
+    applyLikeStateToState(payload.post_id, payload.like_count, payload.liked_by_me);
+    renderHome();
+    renderCommunity();
+    if (state.profile) {
+      renderProfile();
+    }
+  } catch (error) {
+    if (String(error.message || "").includes("请先登录") || String(error.message || "").includes("登录状态过期")) {
+      showAuthScreen("login", "登录后就可以给别人点赞。");
+      return;
+    }
+    showToast(error.message || "点赞失败，请稍后再试", "warning");
+  }
 }
 
 function countSubmittedDishes(rawValue) {
@@ -594,22 +759,23 @@ function renderHomeUpdateCards(target, groups, emptyText) {
     const headline = group.count > 1
       ? `刚刚更新了 ${group.count} 道菜`
       : `刚刚吃了 ${group.uniqueDishes[0] || "这一顿"}`;
-    const dishesLine = group.count > 1
-      ? group.uniqueDishes.join("、")
-      : formatCreatedAt(group.created_at);
-    const metaLine = group.count > 1
-      ? formatCreatedAt(group.created_at)
-      : "";
+    const metaLine = formatCreatedAt(group.created_at);
+    const dishesMarkup = group.posts.map((post) => `
+      <div class="home-update-dish-row">
+        <span class="home-update-dish-name">${escapeHtml(post.dish)}</span>
+        ${renderLikeButton(post, { compact: true })}
+      </div>
+    `).join("");
 
     card.innerHTML = `
       ${imageMarkup}
       <div class="home-update-body">
         <div class="home-update-head">
           <strong class="home-update-name">${escapeHtml(group.display_name)}</strong>
-          ${metaLine ? `<span class="home-update-time">${escapeHtml(metaLine)}</span>` : ""}
+          <span class="home-update-time">${escapeHtml(metaLine)}</span>
         </div>
         <p class="home-update-headline">${escapeHtml(headline)}</p>
-        <p class="home-update-dishes">${escapeHtml(dishesLine)}</p>
+        <div class="home-update-dishes">${dishesMarkup}</div>
       </div>
     `;
     target.appendChild(card);
@@ -785,6 +951,9 @@ function renderGroupedMatchCards(target, groups, emptyText) {
             ${renderCuisineInfoBadge(post.cuisine_info)}
             ${imageMarkup ? `<div class="match-detail-thumb">${imageMarkup}</div>` : ""}
             <p class="feed-note">${escapeHtml(post.note || "今天也做了这一顿。")}</p>
+            <div class="match-detail-actions">
+              ${renderLikeButton(post, { compact: true })}
+            </div>
           </article>
         `;
       })
@@ -797,7 +966,10 @@ function renderGroupedMatchCards(target, groups, emptyText) {
           <h3>${escapeHtml(group.label)}</h3>
           <p class="feed-note match-summary-line">${escapeHtml(group.summary)}</p>
         </div>
-        <span class="group-count">${group.count} 人</span>
+        <div class="match-group-meta">
+          <span class="group-count">${group.count} 人</span>
+          ${group.posts?.[0] ? renderLikeButton(group.posts[0], { compact: true }) : ""}
+        </div>
       </div>
       <div class="match-user-list">
         ${previewNames}
@@ -891,6 +1063,9 @@ function renderPublicFeedCards(target, list, emptyText, options = {}) {
         <h3 class="community-feed-dish">${escapeHtml(post.dish)}</h3>
         ${compact ? "" : renderCuisineInfoBadge(post.cuisine_info)}
         ${noteMarkup}
+        <div class="community-feed-actions">
+          ${renderLikeButton(post, { compact: true })}
+        </div>
       </div>
     `;
     target.appendChild(card);
@@ -922,6 +1097,9 @@ function renderHotDishes(list) {
         </div>
         ${renderCuisineInfoBadge(item.cuisine_info)}
         ${usersLine ? `<p class="hot-rank-users">${escapeHtml(usersLine)}</p>` : ""}
+      </div>
+      <div class="hot-rank-actions">
+        ${renderLikeButton(item, { compact: true })}
       </div>
     `;
     hotDishesList.appendChild(card);
@@ -956,6 +1134,9 @@ function renderNewDishes(list) {
         <p class="new-dish-meta">${escapeHtml(item.display_name)} · ${escapeHtml(formatCreatedAt(item.created_at))}</p>
         ${renderCuisineInfoBadge(item.cuisine_info)}
         ${noteMarkup}
+        <div class="new-dish-actions">
+          ${renderLikeButton(item, { compact: true })}
+        </div>
       </div>
     `;
     newDishesList.appendChild(card);
@@ -1069,6 +1250,9 @@ function renderProfile() {
         ${renderCuisineInfoBadge(item.cuisine_info)}
         ${imageMarkup}
         <p>${escapeHtml(item.note)}</p>
+        <div class="timeline-actions">
+          ${renderLikeButton(item, { compact: true })}
+        </div>
       </div>
     `;
     timelineList.appendChild(card);
@@ -1267,6 +1451,7 @@ async function postKitchenCard() {
   }
   const dish = dishName.value.trim();
   const note = dishNote.value.trim();
+  const submittedDishes = parseSubmittedDishes(dish);
   if (!dish) {
     dishName.focus();
     alert("菜名不能为空");
@@ -1284,7 +1469,7 @@ async function postKitchenCard() {
         photo_data_url: state.photoDataUrl,
       }),
     });
-    const createdCount = payload.created_count || submittedDishCount || 1;
+    const createdCount = payload.created_count || submittedDishCount || submittedDishes.length || 1;
     showToast(`已记录 ${createdCount} 道菜，正在帮你看看和谁撞菜。`, "success");
     dishName.value = "";
     dishNote.value = "";
@@ -1301,7 +1486,11 @@ async function postKitchenCard() {
     revealMatchResults();
     scrollToMatchResults();
     showToast(getPrimaryMatchSummary(state.dashboard), "accent");
-    showDiscoveryModal(payload.created_cuisine_info || []);
+    showDiscoveryModal({
+      createdDishes: submittedDishes,
+      cuisineItems: payload.created_cuisine_info || [],
+      dashboard: state.dashboard,
+    });
     if (payload.warning) {
       showToast(payload.warning, "warning");
     }
@@ -1412,6 +1601,14 @@ document.addEventListener("click", (event) => {
   const cuisineBadge = target.closest("[data-cuisine-story]");
   if (cuisineBadge instanceof HTMLElement) {
     showToast(`${cuisineBadge.dataset.cuisineLabel}：${cuisineBadge.dataset.cuisineStory}`, "accent");
+    return;
+  }
+  const likeButton = target.closest("[data-like-post-id]");
+  if (likeButton instanceof HTMLElement) {
+    const postId = Number(likeButton.dataset.likePostId);
+    if (Number.isFinite(postId)) {
+      handleLikeClick(postId);
+    }
   }
 });
 

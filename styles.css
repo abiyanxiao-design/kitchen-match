@@ -845,13 +845,25 @@ textarea {
 }
 
 .home-update-dishes {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.home-update-dish-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.home-update-dish-name {
+  min-width: 0;
   color: var(--muted);
   line-height: 1.45;
   font-size: 0.84rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-match-card.reveal-pulse {
@@ -985,6 +997,10 @@ textarea {
   margin: 0.35rem 0 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.timeline-actions {
+  margin-top: 0.55rem;
 }
 
 #dish-name {
@@ -1396,6 +1412,10 @@ body.lightbox-open {
   min-width: 0;
 }
 
+.community-feed-actions {
+  margin-top: 0.55rem;
+}
+
 .community-feed-meta-row {
   display: flex;
   justify-content: space-between;
@@ -1481,12 +1501,29 @@ body.lightbox-open {
 }
 
 .discovery-modal__body {
-  margin-top: 0.5rem;
+  margin-top: 0.6rem;
 }
 
 .discovery-modal__list {
   display: grid;
   gap: 0.65rem;
+}
+
+.discovery-modal__section + .discovery-modal__section {
+  margin-top: 0.78rem;
+}
+
+.discovery-modal__section-label {
+  margin: 0 0 0.3rem;
+  color: var(--accent-deep);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.discovery-modal__summary {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.58;
 }
 
 .discovery-modal__item {
@@ -1522,6 +1559,10 @@ body.lightbox-open {
 
 .discovery-modal__feedback {
   margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 16px;
+  background: rgba(255, 250, 241, 0.86);
+  border: 1px solid rgba(112, 78, 43, 0.1);
 }
 
 body.modal-open {
@@ -1541,6 +1582,10 @@ body.modal-open {
 }
 
 .hot-rank-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
   padding: 0.72rem 0.84rem;
 }
 
@@ -1569,6 +1614,12 @@ body.modal-open {
   color: var(--muted);
   line-height: 1.5;
   font-size: 0.84rem;
+}
+
+.hot-rank-actions,
+.new-dish-actions,
+.match-detail-actions {
+  margin-top: 0.55rem;
 }
 
 .new-dishes-list {
@@ -1818,11 +1869,66 @@ body.guest-mode [data-view="my"] .section-head {
   margin-bottom: 0.55rem;
 }
 
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(112, 78, 43, 0.16);
+  background: rgba(255, 252, 246, 0.88);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.like-button:hover {
+  background: rgba(255, 245, 236, 0.98);
+  color: var(--accent-deep);
+}
+
+.like-button:active {
+  transform: scale(0.97);
+}
+
+.like-button.is-liked {
+  background: rgba(189, 95, 45, 0.12);
+  border-color: rgba(189, 95, 45, 0.24);
+  color: var(--accent-deep);
+}
+
+.like-button.is-disabled,
+.like-button:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.like-button--compact {
+  min-height: 1.8rem;
+  padding: 0.34rem 0.62rem;
+  font-size: 0.78rem;
+}
+
 .match-group-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
+}
+
+.match-group-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
 }
 
 .group-count {
@@ -2269,6 +2375,18 @@ body.guest-mode [data-view="my"] .section-head {
   .home-update-time,
   .home-update-dishes {
     font-size: 0.78rem;
+  }
+
+  .like-button {
+    min-height: 1.85rem;
+    padding: 0.36rem 0.62rem;
+    font-size: 0.78rem;
+  }
+
+  .like-button--compact {
+    min-height: 1.7rem;
+    padding: 0.28rem 0.56rem;
+    font-size: 0.74rem;
   }
 
   .app-toast {
