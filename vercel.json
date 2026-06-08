@@ -3,6 +3,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/learning",
+      "destination": "/learning.html"
+    },
+    {
+      "source": "/admin/unknown-dishes",
+      "destination": "/unknown-dishes.html"
+    },
+    {
       "source": "/health",
       "destination": "/api/health"
     }

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kitchen Match 未识别菜品</title>
+    <meta name="theme-color" content="#bd5f2d" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css?v=20260607-v4" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-left"></div>
+    <div class="bg-orb bg-orb-right"></div>
+
+    <main class="shell app-shell learning-shell">
+      <section class="card learning-hero">
+        <p class="section-kicker">Unknown Dishes</p>
+        <h1>最近 30 天被归为“其他家常”的菜</h1>
+        <p class="learning-hero-note">
+          这里是最小查看口。你可以直接把这份列表复制出来，再让我帮你补进知识库。
+        </p>
+        <a class="ghost-link learning-back-link" href="/">回到 Kitchen Match</a>
+      </section>
+
+      <section class="card learning-panel">
+        <div class="section-head compact-head">
+          <div>
+            <p class="section-kicker">Top 30</p>
+            <h2>哪些菜最值得先学</h2>
+          </div>
+        </div>
+        <div class="learning-unknown-list" id="unknown-dishes-list"></div>
+      </section>
+    </main>
+
+    <script src="/unknown-dishes.js?v=20260607-v4"></script>
+  </body>
+</html>

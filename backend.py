@@ -84,6 +84,94 @@ def local_day_label(value):
     return created_at.strftime("%m-%d")
 
 
+DEFAULT_DISH_DICTIONARY = {
+    "南昌炒粉": {
+        "culture": "🏮 赣菜",
+        "story": "南昌人的日常快乐之一，早中晚都能来一份。",
+    },
+    "南昌汤粉": {
+        "culture": "🏮 赣菜",
+        "story": "南昌人的一天，可能就是从一碗热汤粉开始。",
+    },
+    "藜蒿炒腊肉": {
+        "culture": "🏮 赣菜",
+        "story": "很多江西人心里的春天味道，藜蒿一上桌，就有很强的家乡感。",
+    },
+    "瓦罐汤": {
+        "culture": "🏮 赣菜",
+        "story": "江西很有代表性的汤品，慢慢煨出来的香气很有家的感觉。",
+    },
+    "余干辣椒炒肉": {
+        "culture": "🏮 赣菜",
+        "story": "江西人懂的辣，香、辣、下饭都在这一盘里。",
+    },
+    "江西小炒鱼": {
+        "culture": "🏮 赣菜",
+        "story": "这种带着鲜辣和锅气的小炒，很容易让江西人一下子想起家里的味道。",
+    },
+    "番茄炒蛋": {
+        "culture": "🍅 家常经典",
+        "story": "几乎每个中国家庭都做过的一道菜。",
+    },
+    "红烧肉": {
+        "culture": "🍅 家常经典",
+        "story": "很多人家的招牌菜里，总少不了这样一盘浓油赤酱的熟悉味道。",
+    },
+    "可乐鸡翅": {
+        "culture": "🍅 家常经典",
+        "story": "甜咸刚好的可乐鸡翅，常常是很多人记忆里特别有亲切感的一道菜。",
+    },
+    "清炒莴苣": {
+        "culture": "🥬 时令蔬菜",
+        "story": "这种清清爽爽的时令蔬菜，最能看出家里餐桌跟着季节在走。",
+    },
+    "炒青菜": {
+        "culture": "🥬 时令蔬菜",
+        "story": "一盘简单青菜，往往就是一顿家常饭最安稳的底色。",
+    },
+    "生菜": {
+        "culture": "🥬 时令蔬菜",
+        "story": "这种看起来简单的蔬菜，常常最能把家常饭的节奏接住。",
+    },
+    "菠菜": {
+        "culture": "🥬 时令蔬菜",
+        "story": "菠菜这种家里常见的绿叶菜，往往一上桌就有一种很日常的安心感。",
+    },
+    "奶黄包": {
+        "culture": "🥟 中式点心",
+        "story": "热乎乎的奶黄包一上桌，总有一种茶楼和家里早饭同时靠近的感觉。",
+    },
+    "豆沙包": {
+        "culture": "🥟 中式点心",
+        "story": "豆沙包这种甜口点心，常常让人一下子想到小时候的早餐桌。",
+    },
+    "小笼包": {
+        "culture": "🥟 中式点心",
+        "story": "小笼包最迷人的地方，往往就是那口热汤和刚蒸好的香气。",
+    },
+    "烧麦": {
+        "culture": "🥟 中式点心",
+        "story": "烧麦很适合出现在早饭和点心时间里，轻轻巧巧却很有满足感。",
+    },
+    "帝王蟹": {
+        "culture": "🌊 海鲜时令",
+        "story": "这种一上桌就很有存在感的海鲜，常常让整顿饭都亮起来。",
+    },
+    "帝皇蟹": {
+        "culture": "🌊 海鲜时令",
+        "story": "帝皇蟹这种大块头海鲜，一端上桌就很有节气和聚餐的感觉。",
+    },
+    "斑点虾": {
+        "culture": "🌊 海鲜时令",
+        "story": "很多人在等的就是这一口当季鲜味，越简单做越能吃出好时候。",
+    },
+    "螃蟹": {
+        "culture": "🌊 海鲜时令",
+        "story": "螃蟹这种带着季节感的海鲜，很容易让一顿饭变得更像一次小聚。",
+    },
+}
+
+
 FOOD_CULTURE_RULES = [
     {
         "cuisine": "赣菜",
@@ -214,7 +302,93 @@ FOOD_CULTURE_RULES = [
 ]
 
 
-def build_food_culture_info(dish):
+def culture_label_to_name(label):
+    text = (label or "").strip()
+    if not text:
+        return "其他家常"
+    match = re.search(r"[\u4e00-\u9fffA-Za-z].*", text)
+    return (match.group(0).strip() if match else text) or "其他家常"
+
+
+def dish_dictionary_entry(dish, culture, story):
+    label = (culture or "🍚 其他家常").strip() or "🍚 其他家常"
+    return {
+        "dish": dish,
+        "label": label,
+        "culture": label,
+        "cuisine": culture_label_to_name(label),
+        "story": (story or "这是一道很适合记录在日常餐桌里的菜。").strip(),
+    }
+
+
+def load_dish_dictionary(connection):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            select dish_key, dish, culture, story
+            from dish_dictionary
+            order by updated_at desc, created_at desc
+            """
+        )
+        rows = cursor.fetchall()
+
+    dictionary = {}
+    for row in rows:
+        dictionary[row["dish_key"]] = dish_dictionary_entry(
+            row["dish"],
+            row["culture"],
+            row["story"],
+        )
+    return dictionary
+
+
+def seed_dish_dictionary(connection):
+    with connection.cursor() as cursor:
+        for dish, payload in DEFAULT_DISH_DICTIONARY.items():
+            cursor.execute(
+                """
+                insert into dish_dictionary (dish_key, dish, culture, story)
+                values (%s, %s, %s, %s)
+                on conflict (dish_key) do nothing
+                """,
+                (
+                    normalize_text(dish),
+                    dish,
+                    payload["culture"],
+                    payload["story"],
+                ),
+            )
+
+
+def find_dish_dictionary_match(dish, dish_dictionary):
+    normalized = normalize_text(dish)
+    if not normalized or not dish_dictionary:
+        return None
+
+    exact = dish_dictionary.get(normalized)
+    if exact:
+        return exact
+
+    partial_matches = [
+        entry
+        for dish_key, entry in dish_dictionary.items()
+        if dish_key and dish_key in normalized
+    ]
+    if not partial_matches:
+        return None
+    partial_matches.sort(key=lambda entry: len(normalize_text(entry["dish"])), reverse=True)
+    return partial_matches[0]
+
+
+def build_food_culture_info(dish, dish_dictionary=None):
+    dictionary_match = find_dish_dictionary_match(dish, dish_dictionary or {})
+    if dictionary_match:
+        return {
+            "cuisine": dictionary_match["cuisine"],
+            "label": dictionary_match["label"],
+            "story": dictionary_match["story"],
+        }
+
     normalized = normalize_text(dish)
 
     # 江西语境下的辣椒炒肉优先识别为赣菜
@@ -248,8 +422,8 @@ def build_food_culture_info(dish):
     }
 
 
-def infer_category(dish, note):
-    return build_food_culture_info(f"{dish} {note}")["cuisine"]
+def infer_category(dish, note, dish_dictionary=None):
+    return build_food_culture_info(f"{dish} {note}", dish_dictionary)["cuisine"]
 
 
 def split_dishes(value):
@@ -265,27 +439,8 @@ def split_dishes(value):
         ordered.append(dish)
     return ordered
 
-
-CUISINE_RULES = [
-    (["宫保鸡丁", "麻婆豆腐", "回锅肉", "水煮鱼"], ("川菜", "🏮 川菜", "回锅肉里的“回锅”，意思是熟肉再次下锅，是川菜里很有代表性的家常菜。")),
-    (["辣椒炒肉", "剁椒鱼头", "小炒肉"], ("湘菜", "🌶️ 湘菜", "湘菜里常见这种把鲜辣和锅气放在一起的家常味，很容易一口就记住。")),
-    (["白切鸡", "叉烧", "肠粉", "煲仔饭"], ("粤菜", "🥢 粤菜", "粤菜很多时候看起来清淡，真正的讲究常常藏在火候和食材本味里。")),
-    (["红烧肉", "小笼包", "西湖醋鱼"], ("江浙菜", "🪷 江浙菜", "江浙菜常有一种细致的鲜甜感，很多人一吃就会想到江南餐桌。")),
-    (["锅包肉", "地三鲜", "酸菜白肉"], ("东北菜", "❄️ 东北菜", "东北菜里常有很直接的香气和分量感，吃起来特别痛快。")),
-    (["饺子", "包子", "馒头"], ("北方家常", "🥟 北方家常", "这类面点常常不只是吃什么，也和团圆、热气腾腾的家里感觉连在一起。")),
-    (["番茄炒蛋"], ("家常经典", "🍅 家常经典", "番茄炒蛋几乎是很多人学做饭时最早会做的一道菜，简单却总能吃得舒服。")),
-    (["斑点虾", "虾", "螃蟹", "鱼"], ("海鲜时令", "🌊 海鲜时令", "这种菜最迷人的地方，往往就是当季食材本身带出来的鲜味。")),
-    (["米饭", "面条", "炒饭", "河粉"], ("主食面饭", "🍜 主食面饭", "主食常常是最安静的一部分，却最能把一顿饭真正接住。")),
-    (["粥", "汤", "鸡汤", "排骨汤"], ("汤粥", "🥣 汤粥", "汤粥类的菜常常不靠热闹取胜，更多是一种慢慢炖出来的安稳感。")),
-    (["火锅", "麻辣烫", "砂锅"], ("火锅锅物", "🍲 火锅锅物", "锅物很多时候不只是吃什么，更像是一群人围着热气慢慢聊起来。")),
-    (["凉拌", "拍黄瓜"], ("凉菜小菜", "🥒 凉菜小菜", "凉菜小菜看起来低调，往往最能把一顿饭的节奏提起来。")),
-    (["奶茶", "甜品", "蛋糕"], ("甜品饮品", "🍰 甜品饮品", "甜品饮品更像是一顿饭后的小句号，也很容易留下当天的情绪记忆。")),
-    (["外卖", "麦当劳", "肯德基", "披萨", "pizza"], ("外卖餐厅", "🧾 外卖餐厅", "有时候记录外卖和餐厅，也是在记录当天的节奏和心情。")),
-]
-
-
-def build_cuisine_info(dish):
-    return build_food_culture_info(dish)
+def build_cuisine_info(dish, dish_dictionary=None):
+    return build_food_culture_info(dish, dish_dictionary)
 
 
 def pg_connection():
@@ -329,11 +484,21 @@ def ensure_schema():
     create index if not exists posts_user_id_idx on posts(user_id);
     create index if not exists posts_created_at_idx on posts(created_at desc);
     create index if not exists posts_category_idx on posts(category);
+
+    create table if not exists dish_dictionary (
+        dish_key text primary key,
+        dish text not null,
+        culture text not null,
+        story text not null,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+    );
     """
 
     with pg_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(ddl)
+        seed_dish_dictionary(connection)
         connection.commit()
         seed_demo_data(connection)
 
@@ -371,6 +536,8 @@ def seed_demo_data(connection):
         if count:
             return
 
+    dish_dictionary = load_dish_dictionary(connection)
+
     demo_users = [
         ("周叔", "zhou@example.com"),
         ("Maggie 阿姨", "maggie@example.com"),
@@ -403,7 +570,7 @@ def seed_demo_data(connection):
                     dish,
                     note,
                     photo_url,
-                    infer_category(dish, note),
+                    infer_category(dish, note, dish_dictionary),
                     created_at.isoformat(),
                 ),
             )
@@ -504,7 +671,7 @@ def to_post_upload_warning(message):
     return "图片没传上，但菜已经记录了。"
 
 
-def serialize_match(row, audience, current_post):
+def serialize_match(row, audience, current_post, dish_dictionary=None):
     comments = []
     if normalize_text(row["dish"]) == normalize_text(current_post["dish"]):
         comments = ["你今天也做这个？", "这一顿一看就能聊起来。"]
@@ -517,7 +684,7 @@ def serialize_match(row, audience, current_post):
         "audience": audience,
         "comments": comments,
         "photo_data_url": row["photo_public_url"],
-        "cuisine_info": build_cuisine_info(row["dish"]),
+        "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
     }
 
 
@@ -546,7 +713,7 @@ def recent_local_day_range(days=7):
     return now_local() - timedelta(days=days)
 
 
-def serialize_current_post(row):
+def serialize_current_post(row, dish_dictionary=None):
     return {
         "id": row["id"],
         "dish": row["dish"],
@@ -554,12 +721,12 @@ def serialize_current_post(row):
         "category": row["category"],
         "day": local_day_label(row.get("created_at")),
         "photo_data_url": row.get("photo_public_url"),
-        "cuisine_info": build_cuisine_info(row["dish"]),
+        "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
     }
 
 
-def serialize_matched_post(row, audience, current_post=None):
-    payload = serialize_match(row, audience, current_post or row)
+def serialize_matched_post(row, audience, current_post=None, dish_dictionary=None):
+    payload = serialize_match(row, audience, current_post or row, dish_dictionary)
     payload["id"] = row["id"]
     payload["user_id"] = row["user_id"]
     payload["category"] = row["category"]
@@ -567,7 +734,7 @@ def serialize_matched_post(row, audience, current_post=None):
     return payload
 
 
-def serialize_public_post(row):
+def serialize_public_post(row, dish_dictionary=None):
     created_at = coerce_datetime(row.get("created_at"))
     return {
         "display_name": row["display_name"],
@@ -576,11 +743,11 @@ def serialize_public_post(row):
         "photo_public_url": row.get("photo_public_url"),
         "created_at": created_at.isoformat() if created_at else None,
         "category": row["category"],
-        "cuisine_info": build_cuisine_info(row["dish"]),
+        "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
     }
 
 
-def build_today_hot_dishes(posts):
+def build_today_hot_dishes(posts, dish_dictionary=None):
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     grouped = defaultdict(list)
@@ -604,14 +771,14 @@ def build_today_hot_dishes(posts):
             "user_names": unique_names[:3],
             "remaining_user_count": max(0, len(unique_names) - 3),
             "thumbnail": thumbnail,
-            "cuisine_info": build_cuisine_info(sorted_rows[0]["dish"]),
+            "cuisine_info": build_cuisine_info(sorted_rows[0]["dish"], dish_dictionary),
         })
 
     hot_dishes.sort(key=lambda item: (-item["count"], item["dish"]))
     return hot_dishes[:5]
 
 
-def build_today_new_dishes(posts):
+def build_today_new_dishes(posts, dish_dictionary=None):
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     if not today_posts:
@@ -649,14 +816,67 @@ def build_today_new_dishes(posts):
             "photo_public_url": chosen.get("photo_public_url"),
             "created_at": created_at.isoformat() if created_at else None,
             "note": chosen.get("note") or "",
-            "cuisine_info": build_cuisine_info(chosen["dish"]),
+            "cuisine_info": build_cuisine_info(chosen["dish"], dish_dictionary),
         })
 
     new_dishes.sort(key=lambda item: item["created_at"] or "", reverse=True)
     return new_dishes[:5]
 
 
-def build_grouped_matches(rows, audience, key_field, label_field, current_lookup=None):
+def build_top_unknown_dishes(posts, dish_dictionary=None, days=30, limit=20):
+    cutoff = now_today_local() - timedelta(days=days)
+    grouped = {}
+
+    for row in posts:
+        created_at = coerce_datetime(row.get("created_at"))
+        if not created_at:
+            continue
+        if created_at.astimezone(TODAY_TIMEZONE) < cutoff:
+            continue
+
+        cuisine_info = build_cuisine_info(row["dish"], dish_dictionary)
+        if cuisine_info["cuisine"] != "其他家常":
+            continue
+
+        dish_key = normalize_text(row["dish"])
+        if dish_key not in grouped:
+            grouped[dish_key] = {"dish": row["dish"], "count": 0}
+        grouped[dish_key]["count"] += 1
+
+    return sorted(grouped.values(), key=lambda item: (-item["count"], item["dish"]))[:limit]
+
+
+def build_unknown_dishes_payload(connection):
+    posts = fetch_posts(connection)
+    dish_dictionary = load_dish_dictionary(connection)
+    return {
+        "items": build_top_unknown_dishes(posts, dish_dictionary, days=30, limit=30),
+    }
+
+
+def build_learning_culture_options():
+    options = []
+    seen = set()
+
+    for payload in DEFAULT_DISH_DICTIONARY.values():
+        label = payload["culture"]
+        if label not in seen:
+            seen.add(label)
+            options.append(label)
+
+    for rule in FOOD_CULTURE_RULES:
+        label = rule["label"]
+        if label not in seen:
+            seen.add(label)
+            options.append(label)
+
+    fallback = "🍚 其他家常"
+    if fallback not in seen:
+        options.append(fallback)
+    return options
+
+
+def build_grouped_matches(rows, audience, key_field, label_field, current_lookup=None, dish_dictionary=None):
     grouped = defaultdict(list)
     for row in rows:
         grouped[row[key_field]].append(row)
@@ -681,7 +901,7 @@ def build_grouped_matches(rows, audience, key_field, label_field, current_lookup
             "remaining_user_count": max(0, len(display_names) - len(preview_names)),
             "thumbnails": thumbnails,
             "posts": [
-                serialize_matched_post(row, audience, current_post or row)
+                serialize_matched_post(row, audience, current_post or row, dish_dictionary)
                 for row in sorted_rows
             ],
         })
@@ -692,6 +912,7 @@ def build_grouped_matches(rows, audience, key_field, label_field, current_lookup
 
 def build_public_feed(connection):
     posts = fetch_posts(connection)
+    dish_dictionary = load_dish_dictionary(connection)
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
     recent_posts = posts[:12]
@@ -706,10 +927,10 @@ def build_public_feed(connection):
 
     return {
         "updates_count": len(recent_posts),
-        "today_posts": [serialize_public_post(row) for row in today_posts[:8]],
-        "recent_posts": [serialize_public_post(row) for row in recent_posts],
-        "today_hot_dishes": build_today_hot_dishes(posts),
-        "today_new_dishes": build_today_new_dishes(posts),
+        "today_posts": [serialize_public_post(row, dish_dictionary) for row in today_posts[:8]],
+        "recent_posts": [serialize_public_post(row, dish_dictionary) for row in recent_posts],
+        "today_hot_dishes": build_today_hot_dishes(posts, dish_dictionary),
+        "today_new_dishes": build_today_new_dishes(posts, dish_dictionary),
         "starters": starters,
         "hero_points": ["先看看大家做了什么", "想发一顿时再登录", "撞菜和记录会在登录后开始"],
     }
@@ -717,6 +938,7 @@ def build_public_feed(connection):
 
 def build_dashboard(connection, user):
     posts = fetch_posts(connection)
+    dish_dictionary = load_dish_dictionary(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
     today = now_today_local().date()
     current_user_posts = [row for row in user_posts if is_same_local_day(row.get("created_at"), today)]
@@ -767,7 +989,7 @@ def build_dashboard(connection, user):
 
         current_post_by_dish = {normalize_text(row["dish"]): row for row in current_user_posts}
         same_dish_matches = [
-            serialize_matched_post(row, "同一道菜", current_post_by_dish.get(normalize_text(row["dish"])))
+            serialize_matched_post(row, "同一道菜", current_post_by_dish.get(normalize_text(row["dish"])), dish_dictionary)
             for row in same_dish_rows
         ]
         same_style_matches = [
@@ -775,6 +997,7 @@ def build_dashboard(connection, user):
                 row,
                 "同一类菜",
                 next((post for post in current_user_posts if post["category"] == row["category"]), current_user_posts[0]),
+                dish_dictionary,
             )
             for row in same_style_rows
         ]
@@ -786,6 +1009,7 @@ def build_dashboard(connection, user):
                 "dish",
                 "dish",
                 current_lookup=lambda row: current_post_by_dish.get(normalize_text(row["dish"])),
+                dish_dictionary=dish_dictionary,
             ),
             "same_style": build_grouped_matches(
                 same_style_rows,
@@ -796,6 +1020,7 @@ def build_dashboard(connection, user):
                     (post for post in current_user_posts if post["category"] == row["category"]),
                     current_user_posts[0],
                 ),
+                dish_dictionary=dish_dictionary,
             ),
         }
 
@@ -840,12 +1065,12 @@ def build_dashboard(connection, user):
         "starters": starters,
         "same_dish_matches": same_dish_matches,
         "same_style_matches": same_style_matches,
-        "today_hot_dishes": build_today_hot_dishes(posts),
-        "today_new_dishes": build_today_new_dishes(posts),
+        "today_hot_dishes": build_today_hot_dishes(posts, dish_dictionary),
+        "today_new_dishes": build_today_new_dishes(posts, dish_dictionary),
         "weekly_matches": weekly_matches,
         "monthly_profiles": monthly_profiles,
         "hero_points": ["先写菜名", "再看今天撞上谁", "慢慢留下自己的记录"],
-        "current_user_posts": [serialize_current_post(row) for row in current_user_posts],
+        "current_user_posts": [serialize_current_post(row, dish_dictionary) for row in current_user_posts],
         "matched_posts": matched_posts,
         "matched_users": [
             {"user_id": user_id, "display_name": display_name}
@@ -858,6 +1083,7 @@ def build_dashboard(connection, user):
 
 def build_profile(connection, user):
     posts = fetch_posts(connection)
+    dish_dictionary = load_dish_dictionary(connection)
     user_posts = [row for row in posts if row["user_id"] == user["id"]]
 
     categories = {}
@@ -915,7 +1141,7 @@ def build_profile(connection, user):
             "dish": row["dish"],
             "note": row["note"] or "今天记下了这顿饭。",
             "photo_public_url": row.get("photo_public_url"),
-            "cuisine_info": build_cuisine_info(row["dish"]),
+            "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
         }
         for row in user_posts[:12]
     ]
@@ -992,6 +1218,20 @@ def build_profile(connection, user):
     }
 
 
+def build_learning_payload(connection):
+    posts = fetch_posts(connection)
+    dish_dictionary = load_dish_dictionary(connection)
+    known_entries = sorted(
+        dish_dictionary.values(),
+        key=lambda item: (culture_label_to_name(item["label"]), item["dish"]),
+    )
+    return {
+        "top_unknown_dishes": build_top_unknown_dishes(posts, dish_dictionary),
+        "dish_dictionary": known_entries,
+        "culture_options": build_learning_culture_options(),
+    }
+
+
 @app.after_request
 def add_cache_headers(response):
     response.headers["Cache-Control"] = "no-store"
@@ -1008,6 +1248,26 @@ def index_html():
     return send_from_directory(ROOT, "index.html")
 
 
+@app.get("/learning")
+def learning_page():
+    return send_from_directory(ROOT, "learning.html")
+
+
+@app.get("/learning.html")
+def learning_html():
+    return send_from_directory(ROOT, "learning.html")
+
+
+@app.get("/admin/unknown-dishes")
+def unknown_dishes_page():
+    return send_from_directory(ROOT, "unknown-dishes.html")
+
+
+@app.get("/admin/unknown-dishes.html")
+def unknown_dishes_html():
+    return send_from_directory(ROOT, "unknown-dishes.html")
+
+
 @app.get("/styles.css")
 def styles():
     return send_from_directory(ROOT, "styles.css")
@@ -1016,6 +1276,16 @@ def styles():
 @app.get("/app.js")
 def app_js():
     return send_from_directory(ROOT, "app.js")
+
+
+@app.get("/learning.js")
+def learning_js():
+    return send_from_directory(ROOT, "learning.js")
+
+
+@app.get("/unknown-dishes.js")
+def unknown_dishes_js():
+    return send_from_directory(ROOT, "unknown-dishes.js")
 
 
 @app.get("/manifest.json")
@@ -1053,6 +1323,56 @@ def me():
 def public_feed():
     with pg_connection() as connection:
         return jsonify(build_public_feed(connection))
+
+
+@app.get("/api/admin/unknown-dishes")
+def admin_unknown_dishes():
+    with pg_connection() as connection:
+        return jsonify(build_unknown_dishes_payload(connection))
+
+
+@app.route("/api/learning", methods=["GET", "POST"])
+def learning():
+    with pg_connection() as connection:
+        if flask_request.method == "GET":
+            return jsonify(build_learning_payload(connection))
+
+        user = current_user(connection)
+        if not user:
+            return jsonify({"error": "请先登录，再保存菜品知识"}), 401
+
+        payload = flask_request.get_json(force=True, silent=True) or {}
+        dish = (payload.get("dish") or "").strip()
+        culture = (payload.get("culture") or "").strip()
+        story = (payload.get("story") or "").strip()
+
+        if not dish:
+            return jsonify({"error": "请先填写菜名"}), 400
+        if not culture:
+            return jsonify({"error": "请先选择一个标签"}), 400
+        if not story:
+            return jsonify({"error": "请写一句小故事"}), 400
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                insert into dish_dictionary (dish_key, dish, culture, story, updated_at)
+                values (%s, %s, %s, %s, now())
+                on conflict (dish_key) do update
+                set dish = excluded.dish,
+                    culture = excluded.culture,
+                    story = excluded.story,
+                    updated_at = now()
+                """,
+                (normalize_text(dish), dish, culture, story),
+            )
+        connection.commit()
+
+        return jsonify({
+            "ok": True,
+            "entry": dish_dictionary_entry(dish, culture, story),
+            **build_learning_payload(connection),
+        })
 
 
 @app.post("/register")
@@ -1135,6 +1455,7 @@ def create_post():
         user = current_user(connection)
         if not user:
             return jsonify({"error": "登录状态过期，请重新登录"}), 401
+        dish_dictionary = load_dish_dictionary(connection)
 
         photo_path = None
         photo_public_url = None
@@ -1160,7 +1481,7 @@ def create_post():
                             note,
                             photo_path,
                             photo_public_url,
-                            infer_category(dish, note),
+                            infer_category(dish, note, dish_dictionary),
                             created_at,
                         ),
                     )
@@ -1172,7 +1493,7 @@ def create_post():
         "warning": warning,
         "created_count": len(dishes),
         "created_cuisine_info": [
-            {"dish": dish, "cuisine_info": build_cuisine_info(dish)}
+            {"dish": dish, "cuisine_info": build_cuisine_info(dish, dish_dictionary)}
             for dish in dishes[:2]
         ],
     })
