@@ -877,13 +877,11 @@ function renderHome() {
   const todayUsersCount = Number(publicData.today_users_count || 0);
 
   if (todayPostsCount > 0) {
-    updatesBadge.textContent = todayUsersCount > 0
-      ? `${todayUsersCount} 人更新`
-      : `${todayPostsCount} 道更新`;
+    updatesBadge.textContent = `今天已有 ${todayUsersCount} 人更新了 ${todayPostsCount} 道菜`;
   } else if (communitySourcePosts.length > 0) {
     updatesBadge.textContent = "最近有人更新了餐桌";
   } else {
-    updatesBadge.textContent = "还没有人更新";
+    updatesBadge.textContent = "还在等第一顿饭出现";
   }
 
   homeLatestCount.textContent = communitySourcePosts.length
