@@ -1732,10 +1732,10 @@ async function renderAdmin() {
       <tr>
         <td>${escapeHtml(String(u.id))}</td>
         <td>${escapeHtml(u.display_name || "")}</td>
-        <td>${escapeHtml(u.email || "")}</td>
         <td>${u.post_count ?? 0}</td>
         <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("zh-CN") : "-"}</td>
         <td>${u.is_admin ? "✅" : ""}</td>
+        <td>${escapeHtml(u.email || "")}</td>
       </tr>
     `).join("");
   } catch (err) {
