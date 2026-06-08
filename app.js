@@ -71,6 +71,14 @@ let dismissInstallButton = null;
 let installBannerDismissed = false;
 let imageLightbox = null;
 let serviceWorkerRefreshTriggered = false;
+let discoveryModal = null;
+const DISCOVERY_FEEDBACKS = [
+  "这顿饭一记下来，今天就更有味道了。",
+  "你家餐桌上的这一口，很值得被留下来。",
+  "这种日常里的小发现，最容易慢慢攒成自己的味道。",
+  "今天这顿饭不只是吃掉了，也被好好记住了。",
+  "餐桌上这些熟悉的味道，慢慢就会变成很珍贵的记录。",
+];
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -310,6 +318,68 @@ function showToast(message, tone = "default") {
   toastTimerId = setTimeout(() => {
     toast.classList.remove("visible");
   }, 2200);
+}
+
+function getRandomDiscoveryFeedback() {
+  return DISCOVERY_FEEDBACKS[Math.floor(Math.random() * DISCOVERY_FEEDBACKS.length)];
+}
+
+function ensureDiscoveryModal() {
+  if (discoveryModal) {
+    return discoveryModal;
+  }
+  discoveryModal = document.createElement("div");
+  discoveryModal.className = "discovery-modal";
+  discoveryModal.hidden = true;
+  discoveryModal.innerHTML = `
+    <div class="discovery-modal__backdrop" data-discovery-close="true">
+      <div class="discovery-modal__card card" role="dialog" aria-modal="true" aria-label="今日餐桌小发现">
+        <div class="discovery-modal__head">
+          <p class="section-kicker">今日餐桌小发现</p>
+          <button class="ghost-link discovery-modal__close" type="button" data-discovery-close="true">知道了</button>
+        </div>
+        <div class="discovery-modal__body"></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(discoveryModal);
+  discoveryModal.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.discoveryClose === "true") {
+      closeDiscoveryModal();
+    }
+  });
+  return discoveryModal;
+}
+
+function closeDiscoveryModal() {
+  if (!discoveryModal) {
+    return;
+  }
+  discoveryModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function showDiscoveryModal(items) {
+  if (!items?.length) {
+    return;
+  }
+  const modal = ensureDiscoveryModal();
+  const body = modal.querySelector(".discovery-modal__body");
+  const feedback = getRandomDiscoveryFeedback();
+  body.innerHTML = `
+    <div class="discovery-modal__list">
+      ${items.slice(0, 2).map((item) => `
+        <article class="discovery-modal__item">
+          <strong class="discovery-modal__dish">${escapeHtml(item.dish)}</strong>
+          <p class="discovery-modal__label">${escapeHtml(item.cuisine_info?.label || "🍚 其他家常")}</p>
+          <p class="discovery-modal__story">${escapeHtml(item.cuisine_info?.story || "")}</p>
+        </article>
+      `).join("")}
+    </div>
+    <p class="discovery-modal__feedback">${escapeHtml(feedback)}</p>
+  `;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
 }
 
 function ensureImageLightbox() {
@@ -697,9 +767,6 @@ function renderPublicFeedCards(target, list, emptyText) {
           <span class="community-feed-meta">${escapeHtml(formatCreatedAt(post.created_at))}</span>
         </div>
         <h3 class="community-feed-dish">${escapeHtml(post.dish)}</h3>
-        <div class="community-feed-subline">
-          <span class="ghost-pill">${escapeHtml(post.category)}</span>
-        </div>
         ${renderCuisineInfoBadge(post.cuisine_info)}
         ${noteMarkup}
       </div>
@@ -733,7 +800,6 @@ function renderHotDishes(list) {
       <div class="hot-dish-body">
         <div class="hot-dish-title-row">
           <strong>${rank} ${escapeHtml(item.dish)}</strong>
-          <span class="ghost-pill">${escapeHtml(item.category)}</span>
         </div>
         <p class="hot-dish-meta">${escapeHtml(`${item.count} 人今天做了`)}</p>
         ${renderCuisineInfoBadge(item.cuisine_info)}
@@ -768,7 +834,6 @@ function renderNewDishes(list) {
       <div class="new-dish-body">
         <div class="new-dish-head">
           <strong>${escapeHtml(item.dish)}</strong>
-          <span class="ghost-pill">${escapeHtml(item.category)}</span>
         </div>
         <p class="new-dish-meta">${escapeHtml(item.display_name)} · ${escapeHtml(formatCreatedAt(item.created_at))}</p>
         ${renderCuisineInfoBadge(item.cuisine_info)}
@@ -1153,11 +1218,7 @@ async function postKitchenCard() {
     revealMatchResults();
     scrollToMatchResults();
     showToast(getPrimaryMatchSummary(state.dashboard), "accent");
-    (payload.created_cuisine_info || []).slice(0, 2).forEach((item) => {
-      const cuisineName = item.cuisine_info?.cuisine || "其他家常";
-      const leadEmoji = (item.cuisine_info?.label || "🍚 其他家常").split(" ")[0];
-      showCuisineStory(item.cuisine_info, `${leadEmoji} 你今天做的是${cuisineName}`);
-    });
+    showDiscoveryModal(payload.created_cuisine_info || []);
     if (payload.warning) {
       showToast(payload.warning, "warning");
     }
