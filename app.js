@@ -599,10 +599,20 @@ function applyLikeStateToState(postId, likeCount, likedByMe) {
   }
 }
 
-async function handleLikeClick(postId) {
+async function handleLikeClick(postId, button = null) {
   if (!state.user) {
     showAuthScreen("login", "想给这道菜点个赞，先登录或注册。");
     return;
+  }
+
+  if (!postId) {
+    showToast("这道菜暂时还不能点赞。", "warning");
+    return;
+  }
+
+  if (button instanceof HTMLButtonElement) {
+    button.disabled = true;
+    button.classList.add("is-loading");
   }
 
   try {
@@ -616,12 +626,18 @@ async function handleLikeClick(postId) {
     if (state.profile) {
       renderProfile();
     }
+    showToast(payload.liked_by_me ? "已点赞" : "已取消点赞", "success");
   } catch (error) {
     if (String(error.message || "").includes("请先登录") || String(error.message || "").includes("登录状态过期")) {
       showAuthScreen("login", "登录后就可以给别人点赞。");
       return;
     }
     showToast(error.message || "点赞失败，请稍后再试", "warning");
+  } finally {
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = false;
+      button.classList.remove("is-loading");
+    }
   }
 }
 
@@ -673,6 +689,10 @@ function getHomeCommunityPosts(publicData) {
   if (todayPosts.length) {
     return todayPosts;
   }
+  return getCommunityRecentPosts(publicData);
+}
+
+function getCommunityFeedPosts(publicData) {
   return getCommunityRecentPosts(publicData);
 }
 
@@ -1189,7 +1209,7 @@ function renderCommunity() {
 
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
-  const communityPosts = getHomeCommunityPosts(data).slice(0, 12);
+  const communityPosts = getCommunityFeedPosts(data).slice(0, 12);
   communityFeedCount.textContent = communityPosts.length ? `${communityPosts.length} 道` : "";
   renderPublicFeedCards(communityFeedList, communityPosts, "今晚还没有新的晚饭更新。");
 }
@@ -1605,10 +1625,15 @@ document.addEventListener("click", (event) => {
   }
   const likeButton = target.closest("[data-like-post-id]");
   if (likeButton instanceof HTMLElement) {
+    event.preventDefault();
+    event.stopPropagation();
     const postId = Number(likeButton.dataset.likePostId);
     if (Number.isFinite(postId)) {
-      handleLikeClick(postId);
+      handleLikeClick(postId, likeButton instanceof HTMLButtonElement ? likeButton : null);
+    } else {
+      showToast("这道菜暂时还不能点赞。", "warning");
     }
+    return;
   }
 });
 

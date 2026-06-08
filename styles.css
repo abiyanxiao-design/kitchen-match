@@ -1905,6 +1905,10 @@ body.guest-mode [data-view="my"] .section-head {
   color: var(--accent-deep);
 }
 
+.like-button.is-loading {
+  opacity: 0.78;
+}
+
 .like-button.is-disabled,
 .like-button:disabled {
   opacity: 0.72;
