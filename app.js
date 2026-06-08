@@ -498,6 +498,26 @@ function getHomeMatchGroups(dashboard) {
   return [...sameDishGroups, ...sameStyleGroups];
 }
 
+function getCommunityTodayPosts(publicData) {
+  return Array.isArray(publicData?.today_posts) ? publicData.today_posts : [];
+}
+
+function getCommunityRecentPosts(publicData) {
+  return Array.isArray(publicData?.recent_posts) ? publicData.recent_posts : [];
+}
+
+function getHomeCommunityPosts(publicData) {
+  const todayPosts = getCommunityTodayPosts(publicData);
+  if (todayPosts.length) {
+    return todayPosts;
+  }
+  return getCommunityRecentPosts(publicData);
+}
+
+function getCommunityPeopleCount(posts) {
+  return new Set((posts || []).map((post) => post.display_name).filter(Boolean)).size;
+}
+
 function revealMatchResults() {
   if (!homeMatchCard) {
     return;
@@ -850,11 +870,17 @@ function renderHome() {
     return;
   }
 
-  updatesBadge.textContent = `${publicData.updates_count} 人已更新`;
-  const latestPosts = (publicData.today_posts && publicData.today_posts.length)
-    ? publicData.today_posts.slice(0, 3)
-    : (publicData.recent_posts || []).slice(0, 3);
-  homeLatestCount.textContent = latestPosts.length ? `${latestPosts.length} 条` : "";
+  const communitySourcePosts = getHomeCommunityPosts(publicData);
+  const todayPosts = getCommunityTodayPosts(publicData);
+  const latestPosts = communitySourcePosts.slice(0, 3);
+  const peopleCount = getCommunityPeopleCount(todayPosts.length ? todayPosts : communitySourcePosts);
+
+  updatesBadge.textContent = peopleCount
+    ? `${peopleCount} 人更新`
+    : `${communitySourcePosts.length} 道更新`;
+  homeLatestCount.textContent = communitySourcePosts.length
+    ? `${communitySourcePosts.length} 道菜`
+    : "";
   renderPublicFeedCards(homeLatestList, latestPosts, "还在等第一顿晚饭出现。", { compact: true });
 
   if (!state.user) {
@@ -878,9 +904,7 @@ function renderCommunity() {
 
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
-  const communityPosts = (data.today_posts && data.today_posts.length)
-    ? data.today_posts
-    : (data.recent_posts || []).slice(0, 12);
+  const communityPosts = getHomeCommunityPosts(data).slice(0, 12);
   communityFeedCount.textContent = communityPosts.length ? `${communityPosts.length} 道` : "";
   renderPublicFeedCards(communityFeedList, communityPosts, "今晚还没有新的晚饭更新。");
 }
@@ -999,12 +1023,14 @@ async function updatePhotoPreview(file) {
 }
 
 async function refreshAppData() {
-  const [dashboard, profile] = await Promise.all([
+  const [dashboard, profile, publicFeed] = await Promise.all([
     fetchJson("/api/dashboard"),
     fetchJson("/api/profile"),
+    fetchJson("/api/public-feed"),
   ]);
   state.dashboard = dashboard;
   state.profile = profile;
+  state.publicFeed = publicFeed;
   renderHome();
   renderCommunity();
   renderProfile();
