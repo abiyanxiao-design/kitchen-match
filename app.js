@@ -229,16 +229,13 @@ function setGuestMode(isGuest) {
   if (myLogoutButton) {
     myLogoutButton.hidden = isGuest;
   }
-  const adminTab = document.querySelector(".admin-tab");
-  if (adminTab) {
-    adminTab.hidden = true;
-  }
+  setAdminMode(false);
 }
 
 function setAdminMode(isAdmin) {
-  const adminTab = document.querySelector(".admin-tab");
-  if (adminTab) {
-    adminTab.hidden = !isAdmin;
+  const tabbar = document.querySelector(".bottom-tabbar");
+  if (tabbar) {
+    tabbar.classList.toggle("show-admin", isAdmin);
   }
 }
 

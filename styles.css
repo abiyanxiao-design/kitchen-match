@@ -692,6 +692,18 @@ textarea {
   z-index: 20;
 }
 
+.bottom-tabbar.show-admin {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.admin-tab {
+  display: none !important;
+}
+
+.bottom-tabbar.show-admin .admin-tab {
+  display: grid !important;
+}
+
 .tabbar-item {
   border: 0;
   background: transparent;
