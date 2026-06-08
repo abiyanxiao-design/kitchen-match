@@ -34,6 +34,7 @@ const homeMatchCard = document.getElementById("home-match-card");
 const homeRecordButton = document.getElementById("home-record-button");
 const communityFeedList = document.getElementById("community-feed-list");
 const communityFeedCount = document.getElementById("community-feed-count");
+const communityStatusText = document.getElementById("community-status-text");
 const hotDishesList = document.getElementById("hot-dishes-list");
 const newDishesList = document.getElementById("new-dishes-list");
 
@@ -1223,20 +1224,20 @@ function renderHome() {
   const communitySourcePosts = getHomeCommunityPosts(publicData);
   const groupedUpdates = groupHomeUpdates(communitySourcePosts);
   const latestGroups = selectHomeLatestGroups(groupedUpdates, 3);
-  const todayPostsCount = Number(publicData.today_posts_count || 0);
+  const updatesCount = Number(publicData.updates_count || 0);
   const recentPostsCount = getCommunityRecentPosts(publicData).length;
 
-  if (todayPostsCount > 0) {
-    updatesBadge.textContent = `今天已记录 ${todayPostsCount} 道菜`;
+  if (updatesCount > 0) {
+    updatesBadge.textContent = `已记录 ${updatesCount} 道菜`;
   } else if (communitySourcePosts.length > 0) {
     updatesBadge.textContent = `最近已记录 ${recentPostsCount} 道菜`;
   } else {
     updatesBadge.textContent = "还在等第一顿饭出现";
   }
 
-  homeLatestCount.textContent = groupedUpdates.length
-    ? `${groupedUpdates.length} 组更新`
-    : "";
+  homeLatestCount.textContent = updatesCount > 0
+    ? `已记录 ${updatesCount} 道菜`
+    : (groupedUpdates.length ? `${groupedUpdates.length} 组更新` : "");
   renderHomeUpdateCards(homeLatestList, latestGroups, "还在等第一顿晚饭出现。");
 
   if (!state.user) {
@@ -1258,10 +1259,22 @@ function renderCommunity() {
     return;
   }
 
+  const updatesCount = Number(data.updates_count || 0);
+  const communityPosts = getCommunityFeedPosts(data);
+
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
-  const communityPosts = getCommunityFeedPosts(data);
-  communityFeedCount.textContent = communityPosts.length ? `${communityPosts.length} 道` : "";
+
+  communityFeedCount.textContent = updatesCount > 0
+    ? `已记录 ${updatesCount} 道菜`
+    : (communityPosts.length ? `最近更新 ${communityPosts.length} 道` : "");
+
+  if (communityStatusText) {
+    communityStatusText.textContent = updatesCount > 0
+      ? `这里专门用来逛社区、找灵感，已经留下了 ${updatesCount} 道菜。`
+      : (communityPosts.length ? "这里专门用来逛社区、找灵感，最近有人更新了餐桌。" : "这里专门用来逛社区、找灵感，等下一顿晚饭出现。");
+  }
+
   renderPublicFeedCards(communityFeedList, communityPosts, "今晚还没有新的晚饭更新。");
 }
 
