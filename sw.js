@@ -1,15 +1,49 @@
-const CACHE_NAME = "kitchen-match-v1";
+const CACHE_NAME = "kitchen-match-v2";
+const APP_VERSION = "20260607-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css",
-  "/app.js",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon-180.png",
+  `/styles.css?v=${APP_VERSION}`,
+  `/app.js?v=${APP_VERSION}`,
+  `/manifest.json?v=${APP_VERSION}`,
+  `/icons/icon-192.png?v=${APP_VERSION}`,
+  `/icons/icon-512.png?v=${APP_VERSION}`,
+  `/icons/icon-maskable-512.png?v=${APP_VERSION}`,
+  `/icons/apple-touch-icon-180.png?v=${APP_VERSION}`,
 ];
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request, { cache: "no-store" });
+    if (response && response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_error) {
+    const cached = await cache.match(request, { ignoreSearch: false });
+    if (cached) {
+      return cached;
+    }
+    if (request.mode === "navigate") {
+      return cache.match("/index.html");
+    }
+    throw _error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request, { ignoreSearch: false });
+  if (cached) {
+    return cached;
+  }
+  const response = await fetch(request);
+  if (response && response.ok) {
+    cache.put(request, response.clone());
+  }
+  return response;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -31,6 +65,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -39,13 +79,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        return response;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html"))),
-  );
+  const destination = request.destination;
+  const isDocument = request.mode === "navigate" || destination === "document";
+  const isCodeAsset = destination === "script" || destination === "style" || destination === "manifest";
+  const isImage = destination === "image";
+
+  if (isDocument || isCodeAsset) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (isImage) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  event.respondWith(networkFirst(request));
 });

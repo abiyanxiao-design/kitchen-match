@@ -70,6 +70,7 @@ let installButton = null;
 let dismissInstallButton = null;
 let installBannerDismissed = false;
 let imageLightbox = null;
+let serviceWorkerRefreshTriggered = false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -187,7 +188,33 @@ async function registerServiceWorker() {
     return;
   }
   try {
-    await navigator.serviceWorker.register("/sw.js");
+    const registration = await navigator.serviceWorker.register(`/sw.js?v=20260607-v2`);
+
+    if (registration.waiting) {
+      showToast("新版本已更新，正在刷新…", "success");
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+
+    registration.addEventListener("updatefound", () => {
+      const nextWorker = registration.installing;
+      if (!nextWorker) {
+        return;
+      }
+      nextWorker.addEventListener("statechange", () => {
+        if (nextWorker.state === "installed" && navigator.serviceWorker.controller) {
+          showToast("新版本已更新，正在刷新…", "success");
+          nextWorker.postMessage({ type: "SKIP_WAITING" });
+        }
+      });
+    });
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (serviceWorkerRefreshTriggered) {
+        return;
+      }
+      serviceWorkerRefreshTriggered = true;
+      window.location.reload();
+    });
   } catch (error) {
     console.error("[Kitchen Match] service worker register failed", error);
   }
