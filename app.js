@@ -1154,7 +1154,9 @@ async function postKitchenCard() {
     scrollToMatchResults();
     showToast(getPrimaryMatchSummary(state.dashboard), "accent");
     (payload.created_cuisine_info || []).slice(0, 2).forEach((item) => {
-      showCuisineStory(item.cuisine_info, `${item.cuisine_info?.label || "🍚 家常菜"} 你今天做的是 ${item.dish}`);
+      const cuisineName = item.cuisine_info?.cuisine || "其他家常";
+      const leadEmoji = (item.cuisine_info?.label || "🍚 其他家常").split(" ")[0];
+      showCuisineStory(item.cuisine_info, `${leadEmoji} 你今天做的是${cuisineName}`);
     });
     if (payload.warning) {
       showToast(payload.warning, "warning");

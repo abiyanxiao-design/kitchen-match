@@ -84,32 +84,172 @@ def local_day_label(value):
     return created_at.strftime("%m-%d")
 
 
-CATEGORY_RULES = [
-    ("川菜", ["宫保鸡丁", "麻婆豆腐", "回锅肉", "水煮鱼", "夫妻肺片", "鱼香", "口水鸡"]),
-    ("湘菜", ["辣椒炒肉", "剁椒鱼头", "小炒肉", "农家小炒", "腊肉"]),
-    ("粤菜", ["白切鸡", "叉烧", "肠粉", "煲仔饭", "烧鹅", "云吞面"]),
-    ("江浙菜", ["红烧肉", "小笼包", "西湖醋鱼", "东坡肉", "醉鸡"]),
-    ("东北菜", ["锅包肉", "地三鲜", "酸菜白肉", "溜肉段", "杀猪菜"]),
-    ("北方家常", ["饺子", "包子", "馒头", "烙饼", "馄饨"]),
-    ("海鲜时令", ["斑点虾", "螃蟹", "生蚝", "扇贝", "鱼", "虾"]),
-    ("主食面饭", ["米饭", "炒饭", "面条", "米线", "粉", "河粉", "意面"]),
-    ("汤粥", ["粥", "汤", "鸡汤", "排骨汤", "牛腩汤", "海带汤", "玉米汤"]),
-    ("火锅锅物", ["火锅", "麻辣烫", "砂锅", "锅物", "串串"]),
-    ("凉菜小菜", ["凉拌", "拍黄瓜", "凉菜", "泡菜"]),
-    ("甜品饮品", ["奶茶", "甜品", "蛋糕", "布丁", "糖水", "咖啡"]),
-    ("外卖餐厅", ["外卖", "麦当劳", "肯德基", "pizza", "披萨", "寿司店", "餐厅"]),
-    ("家常经典", ["番茄炒蛋", "红烧肉", "可乐鸡翅", "蒸蛋"]),
-    ("其他家常", ["炒青菜", "豆角", "青椒肉丝", "家常"]),
+FOOD_CULTURE_RULES = [
+    {
+        "cuisine": "赣菜",
+        "label": "🏮 赣菜",
+        "story": "江西菜里常有一种鲜辣和烟火气并行的感觉，端上桌就很有家乡味。",
+        "keywords": ["藜蒿炒腊肉", "瓦罐汤", "南昌炒粉", "余干辣椒炒肉", "三杯鸡", "鄱阳湖鱼", "粉蒸肉", "米粉蒸肉", "井冈山烟笋", "江西小炒鱼", "萍乡小炒肉"],
+    },
+    {
+        "cuisine": "川菜",
+        "label": "🏮 川菜",
+        "story": "川菜常把麻、辣、鲜和锅气放在一起，很容易一口就把人叫醒。",
+        "keywords": ["宫保鸡丁", "麻婆豆腐", "回锅肉", "水煮鱼", "夫妻肺片", "鱼香肉丝", "口水鸡"],
+    },
+    {
+        "cuisine": "湘菜",
+        "label": "🌶️ 湘菜",
+        "story": "湘菜的辣往往很直接，香、辣、下饭常常一下子就都到位了。",
+        "keywords": ["辣椒炒肉", "剁椒鱼头", "小炒肉", "农家小炒", "腊味合蒸"],
+    },
+    {
+        "cuisine": "粤菜",
+        "label": "🥢 粤菜",
+        "story": "粤菜常把讲究藏在细处里，很多时候越看着简单，越吃得出功夫。",
+        "keywords": ["白切鸡", "叉烧", "肠粉", "煲仔饭", "烧鹅", "云吞面"],
+    },
+    {
+        "cuisine": "东北菜",
+        "label": "❄️ 东北菜",
+        "story": "东北菜很多时候香得很直接、分量也实在，吃起来就是一种痛快。",
+        "keywords": ["锅包肉", "地三鲜", "酸菜白肉", "溜肉段", "杀猪菜"],
+    },
+    {
+        "cuisine": "江浙菜",
+        "label": "🪷 江浙菜",
+        "story": "江浙菜常有一种细致的鲜甜感，很多人一吃就会想到江南餐桌。",
+        "keywords": ["红烧肉", "小笼包", "西湖醋鱼", "东坡肉", "醉鸡"],
+    },
+    {
+        "cuisine": "闽菜",
+        "label": "🦪 闽菜",
+        "story": "闽菜常把海味和汤味一起端出来，味道里很有沿海城市的节奏。",
+        "keywords": ["佛跳墙", "荔枝肉", "沙茶面", "海蛎煎"],
+    },
+    {
+        "cuisine": "徽菜",
+        "label": "⛰️ 徽菜",
+        "story": "徽菜里常见山味和火候感，很多菜一吃就有种慢慢煨出来的厚实。",
+        "keywords": ["臭鳜鱼", "毛豆腐", "刀板香"],
+    },
+    {
+        "cuisine": "云南风味",
+        "label": "🌿 云南风味",
+        "story": "云南风味常带一点山野感，香气清亮，很容易让人想到当季食材。",
+        "keywords": ["过桥米线", "汽锅鸡", "菌子", "鲜花饼", "饵块"],
+    },
+    {
+        "cuisine": "贵州风味",
+        "label": "🥣 贵州风味",
+        "story": "贵州风味里很常见酸、辣和发酵香，味道一出来就很有辨识度。",
+        "keywords": ["酸汤鱼", "丝娃娃", "折耳根", "贵州辣子鸡"],
+    },
+    {
+        "cuisine": "新疆风味",
+        "label": "🐑 新疆风味",
+        "story": "新疆风味常把肉香、孜然和面食放在一起，热烈得很有画面感。",
+        "keywords": ["大盘鸡", "烤羊肉串", "抓饭", "馕", "拉条子"],
+    },
+    {
+        "cuisine": "客家风味",
+        "label": "🧄 客家风味",
+        "story": "客家风味常给人一种朴实又扎实的感觉，很多菜都很耐吃、很像家里味道。",
+        "keywords": ["梅菜扣肉", "酿豆腐", "盐焗鸡"],
+    },
+    {
+        "cuisine": "潮汕风味",
+        "label": "🫖 潮汕风味",
+        "story": "潮汕风味常把鲜味放在最前面，看起来轻，吃起来却很有记忆点。",
+        "keywords": ["牛肉火锅", "潮汕牛肉丸", "卤鹅", "蚝烙"],
+    },
+    {
+        "cuisine": "北方家常",
+        "label": "🥟 北方家常",
+        "story": "这类面点和家常主食常常不只是吃什么，也和热气腾腾的家里感觉连在一起。",
+        "keywords": ["饺子", "包子", "馒头", "烙饼", "馄饨"],
+    },
+    {
+        "cuisine": "海鲜时令",
+        "label": "🌊 海鲜时令",
+        "story": "这种菜最迷人的地方，往往就是当季食材本身带出来的鲜味。",
+        "keywords": ["斑点虾", "螃蟹", "生蚝", "扇贝", "鄱阳湖鱼", "鱼", "虾"],
+    },
+    {
+        "cuisine": "主食面饭",
+        "label": "🍜 主食面饭",
+        "story": "主食常常是最安静的一部分，却最能把一顿饭真正接住。",
+        "keywords": ["米饭", "炒饭", "面条", "米线", "河粉", "米粉", "粉", "馒头", "包子", "饺子"],
+    },
+    {
+        "cuisine": "汤粥",
+        "label": "🥣 汤粥",
+        "story": "汤粥类的菜常常不靠热闹取胜，更多是一种慢慢炖出来的安稳感。",
+        "keywords": ["粥", "汤", "鸡汤", "排骨汤", "牛腩汤", "海带汤", "玉米汤", "瓦罐汤"],
+    },
+    {
+        "cuisine": "火锅锅物",
+        "label": "🍲 火锅锅物",
+        "story": "锅物很多时候不只是吃什么，更像是一群人围着热气慢慢聊起来。",
+        "keywords": ["火锅", "麻辣烫", "砂锅", "锅物", "串串"],
+    },
+    {
+        "cuisine": "凉菜小菜",
+        "label": "🥒 凉菜小菜",
+        "story": "凉菜小菜看起来低调，往往最能把一顿饭的节奏提起来。",
+        "keywords": ["凉拌", "拍黄瓜", "凉菜", "泡菜"],
+    },
+    {
+        "cuisine": "甜品饮品",
+        "label": "🍰 甜品饮品",
+        "story": "甜品饮品更像是一顿饭后的小句号，也很容易留下当天的情绪记忆。",
+        "keywords": ["奶茶", "甜品", "蛋糕", "布丁", "糖水", "咖啡"],
+    },
+    {
+        "cuisine": "其他家常",
+        "label": "🍚 其他家常",
+        "story": "这是一道很适合记录在日常餐桌里的菜。",
+        "keywords": ["番茄炒蛋", "炒青菜", "豆角", "青椒肉丝", "家常"],
+    },
 ]
 
 
+def build_food_culture_info(dish):
+    normalized = normalize_text(dish)
+
+    # 江西语境下的辣椒炒肉优先识别为赣菜
+    if "辣椒炒肉" in dish and any(keyword in dish for keyword in ["江西", "余干", "萍乡", "南昌"]):
+        return {
+            "cuisine": "赣菜",
+            "label": "🏮 赣菜",
+            "story": "江西人懂的辣，香、辣、下饭都在这一盘里。",
+        }
+
+    for rule in FOOD_CULTURE_RULES:
+        if any(normalize_text(keyword) in normalized for keyword in rule["keywords"]):
+            story = rule["story"]
+            if "藜蒿炒腊肉" in dish:
+                story = "很多江西人心里的春天味道，藜蒿一上桌，就有很强的家乡感。"
+            elif "南昌炒粉" in dish:
+                story = "南昌人的日常快乐之一，早中晚都能来一份。"
+            elif "瓦罐汤" in dish:
+                story = "江西很有代表性的汤品，慢慢煨出来的香气很有家的感觉。"
+            elif "余干辣椒炒肉" in dish:
+                story = "江西人懂的辣，香、辣、下饭都在这一盘里。"
+            return {
+                "cuisine": rule["cuisine"],
+                "label": rule["label"],
+                "story": story,
+            }
+    return {
+        "cuisine": "其他家常",
+        "label": "🍚 其他家常",
+        "story": "这是一道很适合记录在日常餐桌里的菜。",
+    }
+
+
 def infer_category(dish, note):
-    text = f"{dish} {note}"
-    normalized = normalize_text(text)
-    for category, keywords in CATEGORY_RULES:
-        if any(normalize_text(keyword) in normalized for keyword in keywords):
-            return category
-    return "其他家常"
+    return build_food_culture_info(f"{dish} {note}")["cuisine"]
 
 
 def split_dishes(value):
@@ -145,20 +285,7 @@ CUISINE_RULES = [
 
 
 def build_cuisine_info(dish):
-    normalized = normalize_text(dish)
-    for keywords, payload in CUISINE_RULES:
-        if any(normalize_text(keyword) in normalized for keyword in keywords):
-            cuisine, label, story = payload
-            return {
-                "cuisine": cuisine,
-                "label": label,
-                "story": story,
-            }
-    return {
-        "cuisine": "家常菜",
-        "label": "🍚 家常菜",
-        "story": "这是一道很适合记录在日常餐桌里的菜。",
-    }
+    return build_food_culture_info(dish)
 
 
 def pg_connection():
