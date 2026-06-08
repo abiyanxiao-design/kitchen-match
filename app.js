@@ -1619,6 +1619,10 @@ if (myLogoutButton) {
 
 if (topbarMyButton) {
   topbarMyButton.addEventListener("click", () => {
+    if (!state.user) {
+      showAuthScreen("login");
+      return;
+    }
     activateView("my");
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
