@@ -4,7 +4,7 @@ const state = {
   profile: null,
   publicFeed: null,
   authMode: "login",
-  activeView: "feed",
+  activeView: "home",
   photoDataUrl: null,
   refreshIntervalId: null,
 };
@@ -18,28 +18,24 @@ const closeAuthButton = document.getElementById("close-auth");
 const authMessage = document.getElementById("auth-message");
 const logoutButton = document.getElementById("logout-button");
 
-const heroTitle = document.getElementById("hero-title");
-const heroCapacity = document.getElementById("hero-capacity");
+const topbarLabel = document.querySelector(".topbar-label");
+const topbarTitle = document.querySelector(".topbar-title");
 const updatesBadge = document.getElementById("updates-badge");
-const heroPoint1 = document.getElementById("hero-point-1");
-const heroPoint2 = document.getElementById("hero-point-2");
-const heroPoint3 = document.getElementById("hero-point-3");
-const starterStack = document.getElementById("starter-stack");
 
 const viewButtons = document.querySelectorAll("[data-view-target]");
 const views = document.querySelectorAll("[data-view]");
 const jumpButtons = document.querySelectorAll("[data-jump]");
 
-const sameDishList = document.getElementById("same-dish-list");
-const sameStyleList = document.getElementById("same-style-list");
+const homeLatestList = document.getElementById("home-latest-list");
+const homeLatestCount = document.getElementById("home-latest-count");
+const homeMatchList = document.getElementById("home-match-list");
+const homeMatchNote = document.getElementById("home-match-note");
+const homeMatchCard = document.getElementById("home-match-card");
+const homeRecordButton = document.getElementById("home-record-button");
+const communityFeedList = document.getElementById("community-feed-list");
+const communityFeedCount = document.getElementById("community-feed-count");
 const hotDishesList = document.getElementById("hot-dishes-list");
 const newDishesList = document.getElementById("new-dishes-list");
-const weeklyMatchList = document.getElementById("weekly-match-list");
-const monthlyProfileList = document.getElementById("monthly-profile-list");
-const sameDishCount = document.getElementById("same-dish-count");
-const sameStyleCount = document.getElementById("same-style-count");
-const sameDishHeading = document.getElementById("same-dish-heading");
-const sameStyleHeading = document.getElementById("same-style-heading");
 
 const relationshipList = document.getElementById("relationship-list");
 const nextUpList = document.getElementById("next-up-list");
@@ -60,8 +56,7 @@ const JPEG_UPLOAD_QUALITY = 0.72;
 const SECOND_PASS_MAX_EDGE = 1000;
 const SECOND_PASS_JPEG_QUALITY = 0.65;
 const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
-const sameDishBlock = sameDishList.closest(".inspiration-block");
-const sameStyleBlock = sameStyleList.closest(".inspiration-block");
+const quickPostCard = document.getElementById("quick-post");
 
 let toastTimerId = null;
 let deferredInstallPrompt = null;
@@ -273,12 +268,26 @@ function setAuthMode(mode) {
 
 function activateView(name) {
   state.activeView = name;
+  document.body.dataset.activeView = name;
+  if (topbarLabel && topbarTitle) {
+    const topbarMap = {
+      home: ["每日厨房", "看看今天吃了什么"],
+      community: ["社区", "今天大家都在吃什么"],
+      my: ["我的", "做饭记录"],
+    };
+    const [label, title] = topbarMap[name] || topbarMap.home;
+    topbarLabel.textContent = label;
+    topbarTitle.textContent = title;
+  }
   viewButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.viewTarget === name);
   });
   views.forEach((view) => {
     view.classList.toggle("active", view.dataset.view === name);
   });
+  if (name !== "home") {
+    setQuickPostVisible(false);
+  }
 }
 
 function formatCreatedAt(value) {
@@ -480,24 +489,49 @@ function getPrimaryMatchSummary(dashboard) {
   return `你和 ${leadGroup.count} 个人撞上了${leadGroup.label}！`;
 }
 
+function getHomeMatchGroups(dashboard) {
+  if (!dashboard) {
+    return [];
+  }
+  const sameDishGroups = dashboard.grouped_matches?.same_dish || groupLegacyMatches(dashboard.same_dish_matches || [], "same_dish");
+  const sameStyleGroups = dashboard.grouped_matches?.same_style || groupLegacyMatches(dashboard.same_style_matches || [], "same_style");
+  return [...sameDishGroups, ...sameStyleGroups];
+}
+
 function revealMatchResults() {
-  [sameDishBlock, sameStyleBlock].forEach((block) => {
-    if (!block) {
-      return;
-    }
-    block.classList.remove("reveal-pulse");
-    requestAnimationFrame(() => {
-      block.classList.add("reveal-pulse");
-    });
+  if (!homeMatchCard) {
+    return;
+  }
+  homeMatchCard.classList.remove("reveal-pulse");
+  requestAnimationFrame(() => {
+    homeMatchCard.classList.add("reveal-pulse");
   });
 }
 
 function scrollToMatchResults() {
-  const target = sameDishBlock || sameDishList;
+  const target = homeMatchCard;
   if (!target) {
     return;
   }
   target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setQuickPostVisible(isVisible) {
+  if (!quickPostCard) {
+    return;
+  }
+  quickPostCard.hidden = !isVisible;
+}
+
+function openQuickPostComposer() {
+  activateView("home");
+  if (!state.user) {
+    showAuthScreen("register", "想发一顿时，先登录或注册。");
+    return;
+  }
+  setQuickPostVisible(true);
+  quickPostCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  dishName.focus();
 }
 
 function readFileAsDataUrl(file) {
@@ -591,37 +625,6 @@ async function compressImageFile(file) {
     throw new Error("图片处理失败，请换一张照片");
   }
   return secondPass;
-}
-
-function getStarterDish(item) {
-  const meta = String(item?.meta || "");
-  if (!meta) {
-    return "刚更新了一顿晚饭";
-  }
-  return meta.replace(/^刚发了\s*/, "").split("·")[0].trim() || "刚更新了一顿晚饭";
-}
-
-function renderStarterStack(items) {
-  starterStack.innerHTML = "";
-  const recentItems = (items || []).slice(0, 2);
-  if (!recentItems.length) {
-    const empty = document.createElement("p");
-    empty.className = "starter-empty";
-    empty.textContent = "还在等第一顿晚饭出现。";
-    starterStack.appendChild(empty);
-    return;
-  }
-
-  recentItems.forEach((item) => {
-    const row = document.createElement("article");
-    row.className = "starter-activity-row";
-    row.innerHTML = `
-      <span class="starter-activity-name">${escapeHtml(item.name)}</span>
-      <span class="starter-activity-divider">·</span>
-      <span class="starter-activity-dish">${escapeHtml(getStarterDish(item))}</span>
-    `;
-    starterStack.appendChild(row);
-  });
 }
 
 function renderMatchEmptyState(target, emptyText) {
@@ -740,7 +743,8 @@ function groupLegacyMatches(matches, groupType) {
     .sort((a, b) => b.count - a.count);
 }
 
-function renderPublicFeedCards(target, list, emptyText) {
+function renderPublicFeedCards(target, list, emptyText, options = {}) {
+  const compact = options.compact === true;
   target.innerHTML = "";
   if (!list.length) {
     const card = document.createElement("article");
@@ -756,7 +760,7 @@ function renderPublicFeedCards(target, list, emptyText) {
     const imageMarkup = post.photo_public_url
       ? `<div class="community-feed-media">${renderPreviewableImage(post.photo_public_url, post.dish)}</div>`
       : `<div class="community-feed-media community-feed-media-empty"><span>${escapeHtml(post.dish)}</span></div>`;
-    const noteMarkup = post.note
+    const noteMarkup = !compact && post.note
       ? `<p class="community-feed-note">${escapeHtml(post.note)}</p>`
       : "";
     card.innerHTML = `
@@ -767,7 +771,7 @@ function renderPublicFeedCards(target, list, emptyText) {
           <span class="community-feed-meta">${escapeHtml(formatCreatedAt(post.created_at))}</span>
         </div>
         <h3 class="community-feed-dish">${escapeHtml(post.dish)}</h3>
-        ${renderCuisineInfoBadge(post.cuisine_info)}
+        ${compact ? "" : renderCuisineInfoBadge(post.cuisine_info)}
         ${noteMarkup}
       </div>
     `;
@@ -779,7 +783,7 @@ function renderHotDishes(list) {
   hotDishesList.innerHTML = "";
   if (!list.length) {
     const card = document.createElement("article");
-    card.className = "hot-dish-card hot-dish-empty card";
+    card.className = "hot-rank-row hot-dish-empty card";
     card.innerHTML = `<p class="feed-note">今天还在等第一道菜出现。</p>`;
     hotDishesList.appendChild(card);
     return;
@@ -787,23 +791,19 @@ function renderHotDishes(list) {
 
   list.forEach((item, index) => {
     const card = document.createElement("article");
-    card.className = "hot-dish-card card";
+    card.className = "hot-rank-row card";
     const rank = ["🥇", "🥈", "🥉"][index] || "🍽️";
     const names = (item.user_names || []).join("、");
     const moreText = item.remaining_user_count ? ` 等 ${item.remaining_user_count} 人` : "";
-    const thumbMarkup = item.thumbnail
-      ? `<div class="hot-dish-thumb">${renderPreviewableImage(item.thumbnail, item.dish)}</div>`
-      : `<div class="hot-dish-thumb hot-dish-thumb-empty">${rank}</div>`;
+    const usersLine = names ? `${names}${moreText}` : "";
 
     card.innerHTML = `
-      ${thumbMarkup}
-      <div class="hot-dish-body">
-        <div class="hot-dish-title-row">
-          <strong>${rank} ${escapeHtml(item.dish)}</strong>
+      <div class="hot-rank-main">
+        <div class="hot-rank-title-row">
+          <strong>${rank} ${escapeHtml(item.dish)}（${escapeHtml(item.count)}）</strong>
         </div>
-        <p class="hot-dish-meta">${escapeHtml(`${item.count} 人今天做了`)}</p>
         ${renderCuisineInfoBadge(item.cuisine_info)}
-        <p class="hot-dish-users">${escapeHtml(names)}${moreText ? `<span>${escapeHtml(moreText)}</span>` : ""}</p>
+        ${usersLine ? `<p class="hot-rank-users">${escapeHtml(usersLine)}</p>` : ""}
       </div>
     `;
     hotDishesList.appendChild(card);
@@ -844,95 +844,45 @@ function renderNewDishes(list) {
   });
 }
 
-function renderPublicHome() {
+function renderHome() {
+  const publicData = state.publicFeed;
+  if (!publicData) {
+    return;
+  }
+
+  updatesBadge.textContent = `${publicData.updates_count} 人已更新`;
+  const latestPosts = (publicData.today_posts && publicData.today_posts.length)
+    ? publicData.today_posts.slice(0, 3)
+    : (publicData.recent_posts || []).slice(0, 3);
+  homeLatestCount.textContent = latestPosts.length ? `${latestPosts.length} 条` : "";
+  renderPublicFeedCards(homeLatestList, latestPosts, "还在等第一顿晚饭出现。", { compact: true });
+
+  if (!state.user) {
+    homeMatchNote.textContent = "登录后发一顿，回来看看今天和谁撞上。";
+    renderMatchEmptyState(homeMatchList, "今天还没人和你撞上，不过你可以先看看别人吃了什么。");
+    setQuickPostVisible(false);
+    return;
+  }
+
+  const dashboard = state.dashboard;
+  const matchGroups = getHomeMatchGroups(dashboard);
+  homeMatchNote.textContent = getPrimaryMatchSummary(dashboard);
+  renderGroupedMatchCards(homeMatchList, matchGroups, "今天还没人和你撞上，不过你已经留下了这一顿。");
+}
+
+function renderCommunity() {
   const data = state.publicFeed;
   if (!data) {
     return;
   }
 
-  heroTitle.innerHTML = `
-    <span class="hero-title-name">大家今晚</span>
-    <span class="hero-title-question">吃了什么？</span>
-  `;
-  updatesBadge.textContent = `${data.updates_count} 人已更新`;
-  heroCapacity.textContent = `最近已有 ${data.updates_count} 道晚饭`;
-  heroPoint1.textContent = data.hero_points[0] || "先看看大家做了什么";
-  heroPoint2.textContent = data.hero_points[1] || "想发一顿时再登录";
-  heroPoint3.textContent = data.hero_points[2] || "撞菜和记录会在登录后开始";
-  renderStarterStack(data.starters || []);
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
-
-  const publicLeadPosts = (data.today_posts && data.today_posts.length)
+  const communityPosts = (data.today_posts && data.today_posts.length)
     ? data.today_posts
-    : (data.recent_posts || []).slice(0, 8);
-  const publicRecentPosts = (data.recent_posts || []).slice(0, 8);
-  sameDishHeading.textContent = "🥘 大家今晚吃了什么";
-  sameStyleHeading.textContent = "最近大家在做什么";
-  sameDishCount.textContent = `${publicLeadPosts.length} 道`;
-  sameStyleCount.textContent = `${publicRecentPosts.length} 道`;
-  renderPublicFeedCards(sameDishList, publicLeadPosts, "今晚还没有新的晚饭更新。");
-  renderPublicFeedCards(sameStyleList, publicRecentPosts, "最近还没有新的社区晚饭。");
-
-  weeklyMatchList.innerHTML = "";
-  (data.starters || []).forEach((person) => weeklyMatchList.appendChild(clonePersonCard(person)));
-
-  monthlyProfileList.innerHTML = "";
-  [
-    "先看看社区里大家今晚吃了什么。",
-    "你不登录也可以随便逛一逛。",
-    "想发自己的晚饭时，再登录就行。",
-  ].forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "snapshot-item";
-    card.innerHTML = `<strong>${escapeHtml(item)}</strong><p>先浏览，再决定要不要加入。</p>`;
-    monthlyProfileList.appendChild(card);
-  });
-}
-
-function renderDashboard() {
-  const data = state.dashboard;
-  if (!data) {
-    return;
-  }
-
-  heroTitle.innerHTML = `
-    <span class="hero-title-name">${escapeHtml(state.user.display_name)}</span>
-    <span class="hero-title-question">今天做了什么？</span>
-  `;
-  updatesBadge.textContent = `${data.updates_count} 人已更新`;
-  heroCapacity.textContent = `今天已有 ${data.updates_count} 人发了晚饭`;
-  heroPoint1.textContent = data.hero_points[0] || "先写菜名";
-  heroPoint2.textContent = data.hero_points[1] || "再看今天撞上谁";
-  heroPoint3.textContent = data.hero_points[2] || "慢慢留下自己的记录";
-  renderStarterStack(data.starters);
-  renderHotDishes(data.today_hot_dishes || []);
-  renderNewDishes(data.today_new_dishes || []);
-  sameDishHeading.textContent = "撞上同一道菜";
-  sameStyleHeading.textContent = "撞上同一类菜";
-
-  const groupedSameDish = data.grouped_matches?.same_dish || [];
-  const groupedSameStyle = data.grouped_matches?.same_style || [];
-  const fallbackSameDish = groupLegacyMatches(data.same_dish_matches || [], "same_dish");
-  const fallbackSameStyle = groupLegacyMatches(data.same_style_matches || [], "same_style");
-  const sameDishGroups = groupedSameDish.length ? groupedSameDish : fallbackSameDish;
-  const sameStyleGroups = groupedSameStyle.length ? groupedSameStyle : fallbackSameStyle;
-
-  sameDishCount.textContent = `${sameDishGroups.length} 组`;
-  sameStyleCount.textContent = `${sameStyleGroups.length} 组`;
-  renderGroupedMatchCards(sameDishList, sameDishGroups, "今天还没有人和你撞上同一道菜。");
-  renderGroupedMatchCards(sameStyleList, sameStyleGroups, "今天暂时没人和你做同一类菜。");
-
-  weeklyMatchList.innerHTML = "";
-  data.weekly_matches.forEach((person) => weeklyMatchList.appendChild(clonePersonCard(person)));
-
-  monthlyProfileList.innerHTML = "";
-  data.monthly_profiles.forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "snapshot-item";
-    card.innerHTML = `<strong>${escapeHtml(item)}</strong><p>这会慢慢形成你的厨房画像。</p>`;
-    monthlyProfileList.appendChild(card);
-  });
+    : (data.recent_posts || []).slice(0, 12);
+  communityFeedCount.textContent = communityPosts.length ? `${communityPosts.length} 道` : "";
+  renderPublicFeedCards(communityFeedList, communityPosts, "今晚还没有新的晚饭更新。");
 }
 
 function renderProfile() {
@@ -1055,23 +1005,23 @@ async function refreshAppData() {
   ]);
   state.dashboard = dashboard;
   state.profile = profile;
-  renderDashboard();
+  renderHome();
+  renderCommunity();
   renderProfile();
 }
 
 async function refreshPublicFeedData() {
   const publicFeed = await fetchJson("/api/public-feed");
   state.publicFeed = publicFeed;
-  if (!state.user) {
-    renderPublicHome();
-  }
+  renderHome();
+  renderCommunity();
 }
 
 async function refreshDashboardData({ silent = false } = {}) {
   try {
     const dashboard = await fetchJson("/api/dashboard");
     state.dashboard = dashboard;
-    renderDashboard();
+    renderHome();
   } catch (error) {
     if (!silent) {
       throw error;
@@ -1099,8 +1049,9 @@ async function bootstrap() {
     state.profile = null;
     setGuestMode(true);
     hideAuthScreen();
-    activateView("feed");
-    renderPublicHome();
+    activateView("home");
+    renderHome();
+    renderCommunity();
   }
 }
 
@@ -1174,7 +1125,8 @@ async function logout() {
   state.profile = null;
   setGuestMode(true);
   hideAuthScreen();
-  activateView("feed");
+  activateView("home");
+  setQuickPostVisible(false);
   await refreshPublicFeedData().catch(() => {});
 }
 
@@ -1208,9 +1160,10 @@ async function postKitchenCard() {
     dishNote.value = "";
     dishPhoto.value = "";
     await updatePhotoPreview(null);
+    setQuickPostVisible(false);
     await refreshAppData();
     await refreshPublicFeedData().catch(() => {});
-    activateView("feed");
+    activateView("home");
     startAutoRefresh();
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
       navigator.vibrate(30);
@@ -1249,14 +1202,30 @@ logoutButton.addEventListener("click", logout);
 viewButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const target = button.dataset.viewTarget;
-    if (!state.user && target === "circle") {
+    if (!state.user && target === "my") {
       showAuthScreen("login", "登录后才能看自己的记录。");
       return;
     }
     activateView(target);
-    if (target === "feed" && state.user) {
+    if (target === "community") {
+      await refreshPublicFeedData().catch(() => {});
+      return;
+    }
+    if (target === "home") {
+      if (state.user) {
+        try {
+          await refreshDashboardData();
+        } catch (error) {
+          console.error(error);
+        }
+      } else {
+        renderHome();
+      }
+      return;
+    }
+    if (target === "my" && state.user) {
       try {
-        await refreshDashboardData();
+        await refreshAppData();
       } catch (error) {
         console.error(error);
       }
@@ -1268,16 +1237,10 @@ jumpButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const target = button.dataset.jump;
     if (target === "quick-post") {
-      if (!state.user) {
-        showAuthScreen("register", "想发一顿时，先登录或注册。");
-        return;
-      }
-      activateView("feed");
-      document.getElementById("quick-post").scrollIntoView({ behavior: "smooth", block: "start" });
-      dishName.focus();
+      openQuickPostComposer();
       return;
     }
-    if (!state.user && target === "circle") {
+    if (!state.user && target === "my") {
       showAuthScreen("login", "登录后才能看自己的记录。");
       return;
     }
@@ -1286,6 +1249,7 @@ jumpButtons.forEach((button) => {
 });
 
 document.getElementById("post-card").addEventListener("click", postKitchenCard);
+homeRecordButton.addEventListener("click", openQuickPostComposer);
 document.getElementById("fill-demo").addEventListener("click", () => {
   dishName.value = "土豆烧鸡\n番茄炒蛋\n炒青菜";
   dishNote.value = "今天这个颜色终于对了，先把鸡肉煎一下，后面味道会更香。";
@@ -1312,6 +1276,7 @@ document.addEventListener("click", (event) => {
   }
 });
 
-activateView("feed");
+activateView("home");
+setQuickPostVisible(false);
 registerServiceWorker();
 bootstrap();

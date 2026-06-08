@@ -638,7 +638,10 @@ textarea {
 }
 
 .nav-strip {
-  display: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 1rem;
 }
 
 .nav-chip {
@@ -736,6 +739,38 @@ textarea {
 .profile-layout {
   grid-template-columns: 1fr;
   margin-bottom: 1rem;
+}
+
+.home-hero-card,
+.home-latest-card,
+.home-action-card,
+.home-match-card {
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.home-hero-card h1 {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: clamp(2rem, 7vw, 2.8rem);
+  line-height: 1.1;
+}
+
+.home-subtitle,
+.home-match-note {
+  margin: 0.72rem 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.home-record-button {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.home-match-card.reveal-pulse {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(189, 95, 45, 0.14);
+  border-color: rgba(189, 95, 45, 0.26);
 }
 
 .intro-card,
@@ -1396,8 +1431,8 @@ body.modal-open {
 
 .hot-dishes-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
 }
 
 .section-subtext {
@@ -1406,67 +1441,35 @@ body.modal-open {
   line-height: 1.6;
 }
 
-.hot-dish-card {
-  display: grid;
-  grid-template-columns: 68px 1fr;
-  gap: 0.8rem;
-  align-items: center;
-  padding: 0.8rem 0.9rem;
+.hot-rank-row {
+  padding: 0.72rem 0.84rem;
 }
 
 .hot-dish-empty {
-  grid-template-columns: 1fr;
   min-height: 0;
 }
 
-.hot-dish-thumb {
-  width: 68px;
-  height: 68px;
-  border-radius: 18px;
-  overflow: hidden;
-  background: rgba(255, 252, 246, 0.88);
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  color: var(--accent-deep);
-  font-size: 1.35rem;
-}
-
-.hot-dish-thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.hot-dish-thumb-empty {
-  background:
-    radial-gradient(circle at top left, rgba(255, 219, 153, 0.42), transparent 35%),
-    rgba(255, 252, 246, 0.96);
-}
-
-.hot-dish-body {
+.hot-rank-main {
   min-width: 0;
 }
 
-.hot-dish-title-row {
+.hot-rank-title-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
-.hot-dish-title-row strong {
+.hot-rank-title-row strong {
   font-family: "Noto Serif SC", "Songti SC", serif;
-  font-size: 1rem;
+  font-size: 0.98rem;
   line-height: 1.2;
 }
 
-.hot-dish-meta,
-.hot-dish-users {
-  margin: 0.28rem 0 0;
+.hot-rank-users {
+  margin: 0.32rem 0 0;
   color: var(--muted);
   line-height: 1.5;
+  font-size: 0.84rem;
 }
 
 .new-dishes-list {
@@ -1550,6 +1553,10 @@ body.modal-open {
   margin-bottom: 1rem;
 }
 
+.quick-post-card[hidden] {
+  display: none !important;
+}
+
 body.guest-mode #quick-post {
   display: none;
 }
@@ -1557,7 +1564,7 @@ body.guest-mode #quick-post {
 body.guest-mode .profile-layout,
 body.guest-mode .grid-two,
 body.guest-mode .affinity-card,
-body.guest-mode [data-view="circle"] .section-head {
+body.guest-mode [data-view="my"] .section-head {
   display: none;
 }
 
@@ -1812,6 +1819,120 @@ body.guest-mode [data-view="circle"] .section-head {
   }
 }
 
+.learning-shell {
+  padding-top: 1.2rem;
+}
+
+.learning-hero,
+.learning-panel {
+  padding: 1rem;
+}
+
+.learning-hero h1 {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+  line-height: 1.15;
+}
+
+.learning-hero-note,
+.learning-message,
+.learning-empty,
+.learning-dictionary-story {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.learning-back-link {
+  display: inline-flex;
+  margin-top: 0.8rem;
+}
+
+.learning-grid {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.learning-unknown-list,
+.learning-dictionary-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.learning-unknown-item,
+.learning-dictionary-item {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(255, 252, 246, 0.9);
+  border-radius: 18px;
+  padding: 0.8rem 0.88rem;
+  text-align: left;
+  color: var(--ink);
+}
+
+.learning-unknown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.learning-unknown-dish,
+.learning-dictionary-head strong {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 1rem;
+}
+
+.learning-unknown-count,
+.learning-dictionary-label {
+  color: var(--accent-deep);
+  font-size: 0.86rem;
+}
+
+.learning-dictionary-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: baseline;
+}
+
+.learning-dictionary-story {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+
+.learning-form {
+  display: grid;
+  gap: 0.68rem;
+}
+
+.learning-label {
+  font-size: 0.86rem;
+  color: var(--accent-deep);
+}
+
+.learning-form input,
+.learning-form select,
+.learning-form textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid rgba(112, 78, 43, 0.14);
+  background: rgba(255, 252, 246, 0.95);
+  color: var(--ink);
+}
+
+.learning-form textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.learning-form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 @media (max-width: 960px) {
   .hero,
   .grid-two,
@@ -2020,9 +2141,7 @@ body.guest-mode [data-view="circle"] .section-head {
     padding: 0.8rem 0.82rem 0.78rem;
   }
 
-  .hot-dish-card {
-    grid-template-columns: 52px 1fr;
-    gap: 0.7rem;
+  .hot-rank-row {
     padding: 0.66rem 0.72rem;
   }
 
@@ -2104,18 +2223,11 @@ body.guest-mode [data-view="circle"] .section-head {
     line-height: 1.45;
   }
 
-  .hot-dish-thumb {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-  }
-
-  .hot-dish-title-row strong {
+  .hot-rank-title-row strong {
     font-size: 0.95rem;
   }
 
-  .hot-dish-meta,
-  .hot-dish-users {
+  .hot-rank-users {
     font-size: 0.88rem;
     line-height: 1.4;
   }
@@ -2146,6 +2258,20 @@ body.guest-mode [data-view="circle"] .section-head {
   .match-thumb-row img,
   .match-detail-thumb img {
     height: 58px;
+  }
+
+  .learning-hero,
+  .learning-panel {
+    padding: 0.86rem;
+  }
+
+  .learning-hero h1 {
+    font-size: 1.58rem;
+  }
+
+  .learning-unknown-item,
+  .learning-dictionary-item {
+    padding: 0.72rem 0.76rem;
   }
 
 }

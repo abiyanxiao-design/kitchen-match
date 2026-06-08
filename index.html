@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260607-v2" />
+    <link rel="stylesheet" href="./styles.css?v=20260607-v3" />
   </head>
   <body>
     <div class="bg-orb bg-orb-left"></div>
@@ -77,46 +77,41 @@
       </div>
     </section>
 
-    <header class="hero shell">
-      <div class="hero-copy">
-        <p class="eyebrow">Tonight In The Kitchen</p>
-        <h1 id="hero-title">今天做了什么？</h1>
-        <p class="hero-text">
-          写下菜名，马上看看今天和谁撞菜了。
-        </p>
-
-        <div class="hero-actions">
-          <button class="primary-button" data-jump="quick-post">我来试试</button>
-          <button class="secondary-button" data-jump="circle">看我的记录</button>
-        </div>
-
-        <ul class="hero-points">
-          <li id="hero-point-1">先写菜名</li>
-          <li id="hero-point-2">再看今天撞上谁</li>
-          <li id="hero-point-3">慢慢留下自己的记录</li>
-        </ul>
-      </div>
-
-      <aside class="hero-panel card">
-        <div class="panel-topline">
-          <span class="live-pill">刚刚更新</span>
-          <span class="capacity-pill" id="hero-capacity">今天已有 0 人发了晚饭</span>
-        </div>
-        <h2>🍚 刚刚有人发了什么</h2>
-        <p class="hero-panel-note">先看看别人家今晚吃了什么，也许下一顿灵感就在这里。</p>
-        <div class="participant-stack starter-stack-compact" id="starter-stack"></div>
-      </aside>
-    </header>
-
     <main class="shell app-shell">
       <section class="nav-strip">
-        <button class="nav-chip active" data-view-target="feed">今天撞菜</button>
-        <button class="nav-chip" data-view-target="circle">我的记录</button>
+        <button class="nav-chip active" data-view-target="home">首页</button>
+        <button class="nav-chip" data-view-target="community">社区</button>
+        <button class="nav-chip" data-view-target="my">我的</button>
       </section>
 
-      <section class="view active" data-view="feed">
-        <article class="card quick-post-card" id="quick-post">
-          <p class="section-kicker">第一步</p>
+      <section class="view active" data-view="home">
+        <article class="card home-hero-card">
+          <p class="section-kicker">Daily Kitchen</p>
+          <h1>每日厨房</h1>
+          <p class="home-subtitle">看看大家今天吃了什么，也记录你自己的这一顿。</p>
+        </article>
+
+        <article class="card home-latest-card">
+          <div class="section-head compact-head">
+            <div>
+              <p class="section-kicker">最新动态</p>
+              <h2>🥘 刚刚有人吃了什么</h2>
+            </div>
+            <span class="group-count" id="home-latest-count"></span>
+          </div>
+          <div class="feed-list" id="home-latest-list"></div>
+        </article>
+
+        <article class="card home-action-card">
+          <div>
+            <p class="section-kicker">记录一下</p>
+            <h2>把今天这顿饭留下来</h2>
+          </div>
+          <button class="primary-button home-record-button" id="home-record-button" type="button">🍚 记录今天这顿饭</button>
+        </article>
+
+        <article class="card quick-post-card" id="quick-post" hidden>
+          <p class="section-kicker">发一顿</p>
           <h2>先写今天做了什么</h2>
           <div class="quick-post-form">
             <textarea
@@ -141,78 +136,61 @@
           </div>
         </article>
 
-        <div class="feed-layout">
-          <div class="feed-column">
-            <section class="inspiration-stream card">
-              <div class="stream-head">
-                <div>
-                  <p class="section-kicker">今日灵感流</p>
-                  <h2>今天大家都在吃什么？</h2>
-                  <p class="section-subtext">看看别人家的晚饭，也许就有你的下一顿灵感。</p>
-                </div>
-              </div>
-
-              <div class="inspiration-block">
-                <div class="section-head inspiration-subhead">
-                  <div>
-                    <h3>🔥 今日热门菜</h3>
-                  </div>
-                </div>
-                <div class="hot-dishes-list" id="hot-dishes-list"></div>
-              </div>
-
-              <div class="inspiration-block">
-                <div class="section-head inspiration-subhead">
-                  <div>
-                    <h3>🆕 今日新菜</h3>
-                  </div>
-                </div>
-                <div class="new-dishes-list" id="new-dishes-list"></div>
-              </div>
-
-              <div class="inspiration-block">
-                <div class="section-head inspiration-subhead">
-                  <div>
-                    <h3 id="same-dish-heading">🥘 大家今晚吃了什么</h3>
-                  </div>
-                </div>
-                <div class="match-group-head stream-count-head">
-                  <span class="group-count" id="same-dish-count"></span>
-                </div>
-                <div class="feed-list" id="same-dish-list"></div>
-              </div>
-
-              <div class="inspiration-block">
-                <div class="section-head inspiration-subhead">
-                  <div>
-                    <h3 id="same-style-heading">最近大家在做什么</h3>
-                  </div>
-                </div>
-                <div class="match-group-head stream-count-head">
-                  <span class="group-count" id="same-style-count"></span>
-                </div>
-                <div class="feed-list" id="same-style-list"></div>
-              </div>
-            </section>
+        <article class="card home-match-card" id="home-match-card">
+          <div class="section-head compact-head">
+            <div>
+              <p class="section-kicker">撞菜结果</p>
+              <h2>🎯 你今天撞上的菜</h2>
+            </div>
           </div>
-
-          <aside class="feed-side">
-            <article class="card side-panel">
-              <p class="section-kicker">第三步</p>
-              <h3>这周最常撞上的人</h3>
-              <div class="room-list" id="weekly-match-list"></div>
-            </article>
-
-            <article class="card side-panel">
-              <p class="section-kicker">这个月</p>
-              <h3>你的厨房大概是什么样</h3>
-              <div class="topic-list" id="monthly-profile-list"></div>
-            </article>
-          </aside>
-        </div>
+          <p class="home-match-note" id="home-match-note">登录后发一顿，回来看看今天和谁撞上。</p>
+          <div class="feed-list" id="home-match-list"></div>
+        </article>
       </section>
 
-      <section class="view" data-view="circle">
+      <section class="view" data-view="community">
+        <section class="inspiration-stream card">
+          <div class="stream-head">
+            <div>
+              <p class="section-kicker">社区</p>
+              <h2>看看大家今天吃了什么</h2>
+              <p class="section-subtext">这里专门用来逛社区、找灵感、看看今天大家做了什么。</p>
+            </div>
+          </div>
+
+          <div class="inspiration-block">
+            <div class="section-head inspiration-subhead">
+              <div>
+                <h3>🔥 今日热门菜</h3>
+              </div>
+            </div>
+            <div class="hot-dishes-list" id="hot-dishes-list"></div>
+          </div>
+
+          <div class="inspiration-block">
+            <div class="section-head inspiration-subhead">
+              <div>
+                <h3>🆕 今日新菜</h3>
+              </div>
+            </div>
+            <div class="new-dishes-list" id="new-dishes-list"></div>
+          </div>
+
+          <div class="inspiration-block">
+            <div class="section-head inspiration-subhead">
+              <div>
+                <h3>🥘 大家今晚吃了什么</h3>
+              </div>
+            </div>
+            <div class="match-group-head stream-count-head">
+              <span class="group-count" id="community-feed-count"></span>
+            </div>
+            <div class="feed-list" id="community-feed-list"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" data-view="my">
         <div class="section-head">
           <div>
             <p class="section-kicker">我的记录</p>
@@ -268,17 +246,17 @@
     </main>
 
     <nav class="bottom-tabbar">
-      <button class="tabbar-item active" data-view-target="feed">
-        <span class="tabbar-icon">🍲</span>
-        <span>撞菜</span>
+      <button class="tabbar-item active" data-view-target="home">
+        <span class="tabbar-icon">🏠</span>
+        <span>首页</span>
       </button>
-      <button class="tabbar-item" data-jump="quick-post">
-        <span class="tabbar-icon">＋</span>
-        <span>发一顿</span>
+      <button class="tabbar-item" data-view-target="community">
+        <span class="tabbar-icon">🥘</span>
+        <span>社区</span>
       </button>
-      <button class="tabbar-item" data-view-target="circle">
+      <button class="tabbar-item" data-view-target="my">
         <span class="tabbar-icon">📒</span>
-        <span>记录</span>
+        <span>我的</span>
       </button>
     </nav>
 
@@ -292,6 +270,6 @@
       </div>
     </template>
 
-    <script src="./app.js?v=20260607-v2"></script>
+    <script src="./app.js?v=20260608-v1"></script>
   </body>
 </html>
