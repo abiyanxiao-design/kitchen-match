@@ -855,6 +855,57 @@ textarea {
 
 #dish-name {
   font-size: 1.05rem;
+  width: 100%;
+  min-height: 6.2rem;
+  resize: vertical;
+}
+
+.previewable-image {
+  cursor: zoom-in;
+}
+
+.timeline-thumb {
+  margin-top: 0.6rem;
+}
+
+.timeline-thumb img {
+  display: block;
+  width: min(100%, 132px);
+  height: 96px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+}
+
+.image-lightbox[hidden] {
+  display: none !important;
+}
+
+.image-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 16, 12, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.image-lightbox__image {
+  display: block;
+  max-width: min(92vw, 900px);
+  max-height: 86vh;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+body.lightbox-open {
+  overflow: hidden;
 }
 
 .metric-card {
@@ -1753,6 +1804,16 @@ body.guest-mode [data-view="circle"] .section-head {
 
   .home-install-hint__actions {
     justify-content: flex-end;
+  }
+
+  .timeline-item {
+    grid-template-columns: 72px 1fr;
+    gap: 0.72rem;
+  }
+
+  .timeline-thumb img {
+    width: min(100%, 110px);
+    height: 82px;
   }
 
   .eyebrow {

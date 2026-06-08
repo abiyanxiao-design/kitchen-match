@@ -97,6 +97,20 @@ def infer_category(dish, note):
     return "家常晚饭"
 
 
+def split_dishes(value):
+    raw_parts = re.split(r"[\n,，]+", (value or "").strip())
+    dishes = [part.strip() for part in raw_parts if part.strip()]
+    seen = set()
+    ordered = []
+    for dish in dishes:
+        key = normalize_text(dish)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(dish)
+    return ordered
+
+
 def pg_connection():
     if psycopg is None or dict_row is None:
         raise RuntimeError("psycopg is not installed")
@@ -718,6 +732,7 @@ def build_profile(connection, user):
             "day": local_day_label(row["created_at"]),
             "dish": row["dish"],
             "note": row["note"] or "今天记下了这顿饭。",
+            "photo_public_url": row.get("photo_public_url"),
         }
         for row in user_posts[:12]
     ]
@@ -925,11 +940,12 @@ def logout():
 @app.post("/api/posts")
 def create_post():
     payload = flask_request.get_json(force=True, silent=True) or {}
-    dish = (payload.get("dish") or "").strip()
+    dish_input = (payload.get("dish") or "").strip()
     note = (payload.get("note") or "").strip()
     photo_data_url = payload.get("photo_data_url")
+    dishes = split_dishes(dish_input)
 
-    if not dish:
+    if not dishes:
         return jsonify({"error": "请先写下今天做了什么"}), 400
 
     with pg_connection() as connection:
@@ -940,6 +956,7 @@ def create_post():
         photo_path = None
         photo_public_url = None
         warning = None
+        created_at = now_utc()
         if photo_data_url:
             try:
                 photo_path, photo_public_url = upload_to_storage(user["id"], photo_data_url)
@@ -948,24 +965,26 @@ def create_post():
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    insert into posts (user_id, dish, note, photo_path, photo_public_url, category)
-                    values (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        user["id"],
-                        dish,
-                        note,
-                        photo_path,
-                        photo_public_url,
-                        infer_category(dish, note),
-                    ),
-                )
+                for dish in dishes:
+                    cursor.execute(
+                        """
+                        insert into posts (user_id, dish, note, photo_path, photo_public_url, category, created_at)
+                        values (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            user["id"],
+                            dish,
+                            note,
+                            photo_path,
+                            photo_public_url,
+                            infer_category(dish, note),
+                            created_at,
+                        ),
+                    )
             connection.commit()
         except Exception:
             return jsonify({"error": "服务器暂时开小差了，请稍后再试"}), 500
-    return jsonify({"ok": True, "warning": warning})
+    return jsonify({"ok": True, "warning": warning, "created_count": len(dishes)})
 
 
 @app.get("/dashboard")

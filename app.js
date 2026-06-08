@@ -69,6 +69,7 @@ let installBanner = null;
 let installButton = null;
 let dismissInstallButton = null;
 let installBannerDismissed = false;
+let imageLightbox = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -284,6 +285,61 @@ function showToast(message, tone = "default") {
   }, 2200);
 }
 
+function ensureImageLightbox() {
+  if (imageLightbox) {
+    return imageLightbox;
+  }
+  imageLightbox = document.createElement("div");
+  imageLightbox.className = "image-lightbox";
+  imageLightbox.hidden = true;
+  imageLightbox.innerHTML = `
+    <div class="image-lightbox__backdrop" data-lightbox-close="true">
+      <img class="image-lightbox__image" alt="" />
+    </div>
+  `;
+  document.body.appendChild(imageLightbox);
+  imageLightbox.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.lightboxClose === "true") {
+      closeImageLightbox();
+    }
+  });
+  return imageLightbox;
+}
+
+function openImageLightbox(src, alt = "") {
+  if (!src) {
+    return;
+  }
+  const lightbox = ensureImageLightbox();
+  const image = lightbox.querySelector(".image-lightbox__image");
+  image.src = src;
+  image.alt = alt;
+  lightbox.hidden = false;
+  document.body.classList.add("lightbox-open");
+}
+
+function closeImageLightbox() {
+  if (!imageLightbox) {
+    return;
+  }
+  imageLightbox.hidden = true;
+  const image = imageLightbox.querySelector(".image-lightbox__image");
+  image.removeAttribute("src");
+  image.alt = "";
+  document.body.classList.remove("lightbox-open");
+}
+
+function renderPreviewableImage(url, alt, className = "") {
+  return `<img class="${className} previewable-image" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" data-preview-src="${escapeHtml(url)}" data-preview-alt="${escapeHtml(alt)}" />`;
+}
+
+function countSubmittedDishes(rawValue) {
+  return String(rawValue || "")
+    .split(/[\n,，]+/)
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+}
+
 function setPostButtonLoading(isLoading, text = "看看今天和谁撞菜") {
   postButton.disabled = isLoading;
   postButton.classList.toggle("is-loading", isLoading);
@@ -470,12 +526,12 @@ function renderGroupedMatchCards(target, groups, emptyText) {
       ? `<span class="match-user-more">等 ${group.remaining_user_count} 人</span>`
       : "";
     const thumbnails = (group.thumbnails || [])
-      .map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(group.label)} ${index + 1}" />`)
+      .map((url, index) => renderPreviewableImage(url, `${group.label} ${index + 1}`))
       .join("");
     const detailPosts = (group.posts || [])
       .map((post) => {
         const imageMarkup = post.photo_data_url
-          ? `<img src="${escapeHtml(post.photo_data_url)}" alt="${escapeHtml(post.dish)}" />`
+          ? renderPreviewableImage(post.photo_data_url, post.dish)
           : "";
         return `
           <article class="match-detail-item">
@@ -576,7 +632,7 @@ function renderPublicFeedCards(target, list, emptyText) {
     const card = document.createElement("article");
     card.className = "community-feed-card card";
     const imageMarkup = post.photo_public_url
-      ? `<div class="community-feed-media"><img src="${post.photo_public_url}" alt="${escapeHtml(post.dish)}" /></div>`
+      ? `<div class="community-feed-media">${renderPreviewableImage(post.photo_public_url, post.dish)}</div>`
       : `<div class="community-feed-media community-feed-media-empty"><span>${escapeHtml(post.dish)}</span></div>`;
     const noteMarkup = post.note
       ? `<p class="community-feed-note">${escapeHtml(post.note)}</p>`
@@ -616,7 +672,7 @@ function renderHotDishes(list) {
     const names = (item.user_names || []).join("、");
     const moreText = item.remaining_user_count ? ` 等 ${item.remaining_user_count} 人` : "";
     const thumbMarkup = item.thumbnail
-      ? `<div class="hot-dish-thumb"><img src="${escapeHtml(item.thumbnail)}" alt="${escapeHtml(item.dish)}" /></div>`
+      ? `<div class="hot-dish-thumb">${renderPreviewableImage(item.thumbnail, item.dish)}</div>`
       : `<div class="hot-dish-thumb hot-dish-thumb-empty">${rank}</div>`;
 
     card.innerHTML = `
@@ -648,7 +704,7 @@ function renderNewDishes(list) {
     const card = document.createElement("article");
     card.className = "new-dish-card card";
     const thumbMarkup = item.photo_public_url
-      ? `<div class="new-dish-thumb"><img src="${escapeHtml(item.photo_public_url)}" alt="${escapeHtml(item.dish)}" /></div>`
+      ? `<div class="new-dish-thumb">${renderPreviewableImage(item.photo_public_url, item.dish)}</div>`
       : `<div class="new-dish-thumb new-dish-thumb-empty">🆕</div>`;
     const noteMarkup = item.note
       ? `<p class="new-dish-note">${escapeHtml(item.note)}</p>`
@@ -805,10 +861,14 @@ function renderProfile() {
   data.timeline.forEach((item) => {
     const card = document.createElement("article");
     card.className = "timeline-item";
+    const imageMarkup = item.photo_public_url
+      ? `<div class="timeline-thumb">${renderPreviewableImage(item.photo_public_url, item.dish)}</div>`
+      : "";
     card.innerHTML = `
       <div class="timeline-day">${escapeHtml(item.day)}</div>
       <div class="timeline-body">
         <strong>${escapeHtml(item.dish)}</strong>
+        ${imageMarkup}
         <p>${escapeHtml(item.note)}</p>
       </div>
     `;
@@ -1012,6 +1072,7 @@ async function postKitchenCard() {
 
   try {
     setPostButtonLoading(true, "正在看看今天谁和你撞菜…");
+    const submittedDishCount = countSubmittedDishes(dish);
     const payload = await fetchJson("/api/posts", {
       method: "POST",
       body: JSON.stringify({
@@ -1020,7 +1081,8 @@ async function postKitchenCard() {
         photo_data_url: state.photoDataUrl,
       }),
     });
-    showToast("已记录，正在帮你找撞菜的人。", "success");
+    const createdCount = payload.created_count || submittedDishCount || 1;
+    showToast(`已记录 ${createdCount} 道菜，正在帮你看看和谁撞菜。`, "success");
     dishName.value = "";
     dishNote.value = "";
     dishPhoto.value = "";
@@ -1103,13 +1165,25 @@ jumpButtons.forEach((button) => {
 
 document.getElementById("post-card").addEventListener("click", postKitchenCard);
 document.getElementById("fill-demo").addEventListener("click", () => {
-  dishName.value = "土豆烧鸡";
+  dishName.value = "土豆烧鸡\n番茄炒蛋\n炒青菜";
   dishNote.value = "今天这个颜色终于对了，先把鸡肉煎一下，后面味道会更香。";
 });
 
 dishPhoto.addEventListener("change", (event) => {
   const [file] = event.target.files;
   updatePhotoPreview(file);
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const image = target.closest("img[data-preview-src]");
+  if (!image) {
+    return;
+  }
+  openImageLightbox(image.dataset.previewSrc, image.dataset.previewAlt || image.getAttribute("alt") || "");
 });
 
 activateView("feed");
