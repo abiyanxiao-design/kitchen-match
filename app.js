@@ -229,6 +229,14 @@ function setGuestMode(isGuest) {
   if (myLogoutButton) {
     myLogoutButton.hidden = isGuest;
   }
+  setAdminMode(false);
+}
+
+function setAdminMode(isAdmin) {
+  const tabbar = document.querySelector(".bottom-tabbar");
+  if (tabbar) {
+    tabbar.classList.toggle("show-admin", isAdmin);
+  }
 }
 
 function showAuthScreen(mode = "login", message = "") {
@@ -286,6 +294,9 @@ function activateView(name) {
   });
   if (name !== "home") {
     setQuickPostVisible(false);
+  }
+  if (name === "admin") {
+    renderAdmin();
   }
 }
 
@@ -1437,6 +1448,7 @@ async function bootstrap() {
     const me = await fetchJson("/api/me");
     state.user = me.user;
     setGuestMode(false);
+    setAdminMode(Boolean(me.user && me.user.is_admin));
     hideAuthScreen();
     await refreshAppData();
     startAutoRefresh();
@@ -1478,6 +1490,7 @@ async function submitLogin(event) {
     });
     state.user = payload.user;
     setGuestMode(false);
+    setAdminMode(Boolean(payload.user && payload.user.is_admin));
     hideAuthScreen();
     authMessage.textContent = "";
     loginForm.reset();
@@ -1606,6 +1619,10 @@ if (myLogoutButton) {
 
 if (topbarMyButton) {
   topbarMyButton.addEventListener("click", () => {
+    if (!state.user) {
+      showAuthScreen("login");
+      return;
+    }
     activateView("my");
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
@@ -1700,6 +1717,34 @@ document.addEventListener("click", (event) => {
     return;
   }
 });
+
+async function renderAdmin() {
+  const tbody = document.getElementById("admin-users-tbody");
+  const loading = document.getElementById("admin-loading");
+  const countEl = document.getElementById("admin-user-count");
+  if (!tbody) return;
+  if (loading) loading.hidden = false;
+  tbody.innerHTML = "";
+  try {
+    const data = await fetchJson("/api/admin/users");
+    const users = data.users || [];
+    if (countEl) countEl.textContent = `共 ${users.length} 人`;
+    tbody.innerHTML = users.map((u) => `
+      <tr>
+        <td>${escapeHtml(String(u.id))}</td>
+        <td>${escapeHtml(u.display_name || "")}</td>
+        <td>${u.post_count ?? 0}</td>
+        <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("zh-CN") : "-"}</td>
+        <td>${u.is_admin ? "✅" : ""}</td>
+        <td>${escapeHtml(u.email || "")}</td>
+      </tr>
+    `).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#999">${escapeHtml(err.message)}</td></tr>`;
+  } finally {
+    if (loading) loading.hidden = true;
+  }
+}
 
 activateView("home");
 setQuickPostVisible(false);
