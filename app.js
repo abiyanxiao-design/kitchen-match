@@ -7,6 +7,7 @@ const state = {
   activeView: "home",
   photoDataUrl: null,
   refreshIntervalId: null,
+  pendingLikePostIds: new Set(),
 };
 
 const authScreen = document.getElementById("auth-screen");
@@ -521,6 +522,7 @@ function renderLikeButton(post, options = {}) {
   const likeCount = Number(post?.like_count || 0);
   const likedByMe = Boolean(post?.liked_by_me);
   const isOwnPost = Boolean(state.user && ownerId && Number(state.user.id) === ownerId);
+  const isPending = Boolean(postId && state.pendingLikePostIds.has(postId));
   const isCompact = options.compact === true;
   const classes = ["like-button"];
   if (isCompact) {
@@ -531,6 +533,9 @@ function renderLikeButton(post, options = {}) {
   }
   if (isOwnPost) {
     classes.push("is-disabled");
+  }
+  if (isPending) {
+    classes.push("is-loading");
   }
 
   const label = likedByMe ? `👍 已赞 ${likeCount}` : `👍 ${likeCount}`;
@@ -543,7 +548,7 @@ function renderLikeButton(post, options = {}) {
       class="${classes.join(" ")}"
       type="button"
       data-like-post-id="${postId}"
-      ${isOwnPost ? "disabled" : ""}
+      ${(isOwnPost || isPending) ? "disabled" : ""}
       aria-pressed="${likedByMe ? "true" : "false"}"
     >
       ${escapeHtml(label)}
@@ -599,6 +604,45 @@ function applyLikeStateToState(postId, likeCount, likedByMe) {
   }
 }
 
+function getCurrentLikeSnapshot(postId) {
+  const candidates = [
+    state.publicFeed?.today_posts,
+    state.publicFeed?.recent_posts,
+    state.publicFeed?.today_hot_dishes,
+    state.publicFeed?.today_new_dishes,
+    state.dashboard?.current_user_posts,
+    state.dashboard?.same_dish_matches,
+    state.dashboard?.same_style_matches,
+    state.dashboard?.matched_posts,
+    state.dashboard?.today_hot_dishes,
+    state.dashboard?.today_new_dishes,
+    state.profile?.timeline,
+  ];
+
+  for (const list of candidates) {
+    if (!Array.isArray(list)) {
+      continue;
+    }
+    const found = list.find((item) => getPostId(item) === postId);
+    if (found) {
+      return {
+        like_count: Number(found.like_count || 0),
+        liked_by_me: Boolean(found.liked_by_me),
+      };
+    }
+  }
+
+  return { like_count: 0, liked_by_me: false };
+}
+
+function rerenderVisibleViews() {
+  renderHome();
+  renderCommunity();
+  if (state.profile) {
+    renderProfile();
+  }
+}
+
 async function handleLikeClick(postId, button = null) {
   if (!state.user) {
     showAuthScreen("login", "想给这道菜点个赞，先登录或注册。");
@@ -610,10 +654,16 @@ async function handleLikeClick(postId, button = null) {
     return;
   }
 
-  if (button instanceof HTMLButtonElement) {
-    button.disabled = true;
-    button.classList.add("is-loading");
+  if (state.pendingLikePostIds.has(postId)) {
+    return;
   }
+
+  const previous = getCurrentLikeSnapshot(postId);
+  const optimisticLikedByMe = !previous.liked_by_me;
+  const optimisticLikeCount = Math.max(0, previous.like_count + (optimisticLikedByMe ? 1 : -1));
+  state.pendingLikePostIds.add(postId);
+  applyLikeStateToState(postId, optimisticLikeCount, optimisticLikedByMe);
+  rerenderVisibleViews();
 
   try {
     const payload = await fetchJson("/api/like_post", {
@@ -621,23 +671,18 @@ async function handleLikeClick(postId, button = null) {
       body: JSON.stringify({ post_id: postId }),
     });
     applyLikeStateToState(payload.post_id, payload.like_count, payload.liked_by_me);
-    renderHome();
-    renderCommunity();
-    if (state.profile) {
-      renderProfile();
-    }
+    state.pendingLikePostIds.delete(postId);
+    rerenderVisibleViews();
     showToast(payload.liked_by_me ? "已点赞" : "已取消点赞", "success");
   } catch (error) {
+    applyLikeStateToState(postId, previous.like_count, previous.liked_by_me);
+    state.pendingLikePostIds.delete(postId);
+    rerenderVisibleViews();
     if (String(error.message || "").includes("请先登录") || String(error.message || "").includes("登录状态过期")) {
       showAuthScreen("login", "登录后就可以给别人点赞。");
       return;
     }
     showToast(error.message || "点赞失败，请稍后再试", "warning");
-  } finally {
-    if (button instanceof HTMLButtonElement) {
-      button.disabled = false;
-      button.classList.remove("is-loading");
-    }
   }
 }
 
@@ -760,6 +805,12 @@ function groupHomeUpdates(posts) {
     });
 }
 
+function selectHomeLatestGroups(groups, limit = 3) {
+  const withPhoto = groups.filter((group) => group.photo_public_url);
+  const withoutPhoto = groups.filter((group) => !group.photo_public_url);
+  return [...withPhoto, ...withoutPhoto].slice(0, limit);
+}
+
 function renderHomeUpdateCards(target, groups, emptyText) {
   target.innerHTML = "";
   if (!groups.length) {
@@ -775,7 +826,7 @@ function renderHomeUpdateCards(target, groups, emptyText) {
     card.className = "home-update-card card";
     const imageMarkup = group.photo_public_url
       ? `<div class="home-update-media">${renderPreviewableImage(group.photo_public_url, group.uniqueDishes[0] || group.display_name)}</div>`
-      : `<div class="home-update-media home-update-media-empty"><span>${escapeHtml(group.uniqueDishes[0] || "晚饭")}</span></div>`;
+      : `<div class="home-update-media home-update-media-empty"><span>🍚</span></div>`;
     const headline = group.count > 1
       ? `刚刚更新了 ${group.count} 道菜`
       : `刚刚吃了 ${group.uniqueDishes[0] || "这一顿"}`;
@@ -1069,7 +1120,7 @@ function renderPublicFeedCards(target, list, emptyText, options = {}) {
     card.className = "community-feed-card card";
     const imageMarkup = post.photo_public_url
       ? `<div class="community-feed-media">${renderPreviewableImage(post.photo_public_url, post.dish)}</div>`
-      : `<div class="community-feed-media community-feed-media-empty"><span>${escapeHtml(post.dish)}</span></div>`;
+      : `<div class="community-feed-media community-feed-media-empty"><span>🍚</span></div>`;
     const noteMarkup = !compact && post.note
       ? `<p class="community-feed-note">${escapeHtml(post.note)}</p>`
       : "";
@@ -1171,7 +1222,7 @@ function renderHome() {
 
   const communitySourcePosts = getHomeCommunityPosts(publicData);
   const groupedUpdates = groupHomeUpdates(communitySourcePosts);
-  const latestGroups = groupedUpdates.slice(0, 3);
+  const latestGroups = selectHomeLatestGroups(groupedUpdates, 3);
   const todayPostsCount = Number(publicData.today_posts_count || 0);
   const recentPostsCount = getCommunityRecentPosts(publicData).length;
 
