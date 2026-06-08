@@ -515,6 +515,107 @@ function getCommunityPeopleCount(posts) {
   return new Set((posts || []).map((post) => post.display_name).filter(Boolean)).size;
 }
 
+function getPostGroupBucket(post) {
+  const rawCreatedAt = post?.created_at;
+  const createdAt = rawCreatedAt ? new Date(rawCreatedAt) : null;
+  const bucketMs = createdAt && !Number.isNaN(createdAt.getTime())
+    ? Math.floor(createdAt.getTime() / (2 * 60 * 1000)) * (2 * 60 * 1000)
+    : 0;
+  return [
+    post?.display_name || "",
+    post?.photo_public_url || "",
+    post?.note || "",
+    String(bucketMs),
+  ].join("::");
+}
+
+function groupHomeUpdates(posts) {
+  const groups = [];
+  const groupIndex = new Map();
+
+  (posts || []).forEach((post) => {
+    const key = getPostGroupBucket(post);
+    let group = groupIndex.get(key);
+    if (!group) {
+      group = {
+        key,
+        display_name: post.display_name || "有人",
+        created_at: post.created_at || null,
+        photo_public_url: post.photo_public_url || "",
+        dishes: [],
+        posts: [],
+      };
+      groupIndex.set(key, group);
+      groups.push(group);
+    }
+
+    group.posts.push(post);
+    group.dishes.push(post.dish);
+
+    const postDate = post.created_at ? new Date(post.created_at) : null;
+    const groupDate = group.created_at ? new Date(group.created_at) : null;
+    if (postDate && !Number.isNaN(postDate.getTime()) && (!groupDate || postDate > groupDate)) {
+      group.created_at = post.created_at;
+    }
+    if (!group.photo_public_url && post.photo_public_url) {
+      group.photo_public_url = post.photo_public_url;
+    }
+  });
+
+  return groups
+    .map((group) => ({
+      ...group,
+      uniqueDishes: [...new Set(group.dishes.filter(Boolean))],
+      count: group.posts.length,
+    }))
+    .sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+}
+
+function renderHomeUpdateCards(target, groups, emptyText) {
+  target.innerHTML = "";
+  if (!groups.length) {
+    const card = document.createElement("article");
+    card.className = "home-update-card home-update-empty card";
+    card.innerHTML = `<p class="feed-note">${escapeHtml(emptyText)}</p>`;
+    target.appendChild(card);
+    return;
+  }
+
+  groups.forEach((group) => {
+    const card = document.createElement("article");
+    card.className = "home-update-card card";
+    const imageMarkup = group.photo_public_url
+      ? `<div class="home-update-media">${renderPreviewableImage(group.photo_public_url, group.uniqueDishes[0] || group.display_name)}</div>`
+      : `<div class="home-update-media home-update-media-empty"><span>${escapeHtml(group.uniqueDishes[0] || "晚饭")}</span></div>`;
+    const headline = group.count > 1
+      ? `刚刚更新了 ${group.count} 道菜`
+      : `刚刚吃了 ${group.uniqueDishes[0] || "这一顿"}`;
+    const dishesLine = group.count > 1
+      ? group.uniqueDishes.join("、")
+      : formatCreatedAt(group.created_at);
+    const metaLine = group.count > 1
+      ? formatCreatedAt(group.created_at)
+      : "";
+
+    card.innerHTML = `
+      ${imageMarkup}
+      <div class="home-update-body">
+        <div class="home-update-head">
+          <strong class="home-update-name">${escapeHtml(group.display_name)}</strong>
+          ${metaLine ? `<span class="home-update-time">${escapeHtml(metaLine)}</span>` : ""}
+        </div>
+        <p class="home-update-headline">${escapeHtml(headline)}</p>
+        <p class="home-update-dishes">${escapeHtml(dishesLine)}</p>
+      </div>
+    `;
+    target.appendChild(card);
+  });
+}
+
 function revealMatchResults() {
   if (!homeMatchCard) {
     return;
@@ -868,23 +969,23 @@ function renderHome() {
   }
 
   const communitySourcePosts = getHomeCommunityPosts(publicData);
-  const todayPosts = getCommunityTodayPosts(publicData);
-  const latestPosts = communitySourcePosts.slice(0, 3);
+  const groupedUpdates = groupHomeUpdates(communitySourcePosts);
+  const latestGroups = groupedUpdates.slice(0, 3);
   const todayPostsCount = Number(publicData.today_posts_count || 0);
-  const todayUsersCount = Number(publicData.today_users_count || 0);
+  const recentPostsCount = getCommunityRecentPosts(publicData).length;
 
   if (todayPostsCount > 0) {
-    updatesBadge.textContent = `今天已有 ${todayUsersCount} 人更新了 ${todayPostsCount} 道菜`;
+    updatesBadge.textContent = `今天已记录 ${todayPostsCount} 道菜`;
   } else if (communitySourcePosts.length > 0) {
-    updatesBadge.textContent = "最近有人更新了餐桌";
+    updatesBadge.textContent = `最近已记录 ${recentPostsCount} 道菜`;
   } else {
     updatesBadge.textContent = "还在等第一顿饭出现";
   }
 
-  homeLatestCount.textContent = communitySourcePosts.length
-    ? `${communitySourcePosts.length} 道菜`
+  homeLatestCount.textContent = groupedUpdates.length
+    ? `${groupedUpdates.length} 组更新`
     : "";
-  renderPublicFeedCards(homeLatestList, latestPosts, "还在等第一顿晚饭出现。", { compact: true });
+  renderHomeUpdateCards(homeLatestList, latestGroups, "还在等第一顿晚饭出现。");
 
   if (!state.user) {
     homeMatchNote.textContent = "登录后发一顿，回来看看今天和谁撞上。";

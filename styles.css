@@ -755,6 +755,10 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.home-latest-subtext {
+  margin-top: 0.22rem;
+}
+
 .home-subtitle,
 .home-match-note {
   margin: 0.72rem 0 0;
@@ -765,6 +769,89 @@ textarea {
 .home-record-button {
   width: 100%;
   margin-top: 0.8rem;
+}
+
+.home-update-card {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 0.78rem;
+  align-items: center;
+  padding: 0.72rem;
+}
+
+.home-update-empty {
+  grid-template-columns: 1fr;
+}
+
+.home-update-media {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at top left, rgba(255, 219, 153, 0.38), transparent 36%),
+    rgba(255, 252, 246, 0.96);
+}
+
+.home-update-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-update-media-empty {
+  display: grid;
+  place-items: center;
+  color: var(--accent-deep);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 0.35rem;
+}
+
+.home-update-body {
+  min-width: 0;
+}
+
+.home-update-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.home-update-name {
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.home-update-time {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.home-update-headline,
+.home-update-dishes {
+  margin: 0.22rem 0 0;
+}
+
+.home-update-headline {
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.home-update-dishes {
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 0.84rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .home-match-card.reveal-pulse {
@@ -2161,6 +2248,27 @@ body.guest-mode [data-view="my"] .section-head {
     grid-template-columns: 72px 1fr;
     gap: 0.68rem;
     padding: 0.68rem;
+  }
+
+  .home-update-card {
+    grid-template-columns: 64px 1fr;
+    gap: 0.66rem;
+    padding: 0.66rem;
+  }
+
+  .home-update-media {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+  }
+
+  .home-update-name {
+    font-size: 0.92rem;
+  }
+
+  .home-update-time,
+  .home-update-dishes {
+    font-size: 0.78rem;
   }
 
   .app-toast {
