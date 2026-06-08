@@ -1019,7 +1019,7 @@ def build_public_feed(connection, user=None):
     dish_dictionary = load_dish_dictionary(connection)
     today = now_today_local().date()
     today_posts = [row for row in posts if is_same_local_day(row.get("created_at"), today)]
-    recent_posts = posts[:12]
+    recent_posts = posts[:30]
     today_user_count = len({row["display_name"] for row in today_posts if row.get("display_name")})
 
     starters = [

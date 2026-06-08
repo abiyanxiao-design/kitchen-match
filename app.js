@@ -1260,7 +1260,7 @@ function renderCommunity() {
 
   renderHotDishes(data.today_hot_dishes || []);
   renderNewDishes(data.today_new_dishes || []);
-  const communityPosts = getCommunityFeedPosts(data).slice(0, 12);
+  const communityPosts = getCommunityFeedPosts(data);
   communityFeedCount.textContent = communityPosts.length ? `${communityPosts.length} 道` : "";
   renderPublicFeedCards(communityFeedList, communityPosts, "今晚还没有新的晚饭更新。");
 }
