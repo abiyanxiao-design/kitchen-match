@@ -461,8 +461,10 @@ def ensure_schema():
         email text not null unique,
         password_hash text not null,
         password_salt text not null,
+        is_admin boolean not null default false,
         created_at timestamptz not null default now()
     );
+    alter table users add column if not exists is_admin boolean not null default false;
 
     create table if not exists app_sessions (
         token text primary key,
@@ -595,7 +597,7 @@ def current_user(connection):
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            select users.id, users.display_name, users.email
+            select users.id, users.display_name, users.email, users.is_admin
             from app_sessions
             join users on users.id = app_sessions.user_id
             where app_sessions.token = %s
@@ -1441,6 +1443,28 @@ def admin_unknown_dishes():
         return jsonify(build_unknown_dishes_payload(connection))
 
 
+@app.get("/api/admin/users")
+def admin_users():
+    with pg_connection() as connection:
+        user = current_user(connection)
+        if not user or not user.get("is_admin"):
+            return jsonify({"error": "无权限"}), 403
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                select u.id, u.display_name, u.email, u.is_admin, u.created_at,
+                       count(p.id)::bigint as post_count
+                from users u
+                left join posts p on p.user_id = u.id
+                group by u.id, u.display_name, u.email, u.is_admin, u.created_at
+                order by u.created_at desc
+            """)
+            users = [dict(row) for row in cursor.fetchall()]
+        for u in users:
+            if u.get("created_at"):
+                u["created_at"] = u["created_at"].isoformat()
+        return jsonify({"users": users})
+
+
 @app.route("/api/learning", methods=["GET", "POST"])
 def learning():
     with pg_connection() as connection:
@@ -1532,7 +1556,7 @@ def login():
 
         token = create_session(connection, user["id"])
 
-    response = jsonify({"user": {"id": user["id"], "display_name": user["display_name"], "email": user["email"]}})
+    response = jsonify({"user": {"id": user["id"], "display_name": user["display_name"], "email": user["email"], "is_admin": bool(user.get("is_admin", False))}})
     response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 30)
     return response
 

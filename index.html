@@ -225,6 +225,33 @@
           <div class="affinity-grid" id="affinity-grid"></div>
         </article>
       </section>
+      <section class="view" data-view="admin">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">管理后台</p>
+            <h2>所有注册用户</h2>
+          </div>
+          <span class="group-count" id="admin-user-count"></span>
+        </div>
+        <article class="card admin-users-card">
+          <div class="admin-table-wrap">
+            <table class="admin-users-table" id="admin-users-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>昵称</th>
+                  <th>邮箱</th>
+                  <th>发帖</th>
+                  <th>注册时间</th>
+                  <th>管理员</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+          <p class="admin-loading" id="admin-loading">加载中…</p>
+        </article>
+      </section>
     </main>
 
     <nav class="bottom-tabbar">
@@ -239,6 +266,10 @@
       <button class="tabbar-item" data-view-target="my">
         <span class="tabbar-icon">📒</span>
         <span>我的</span>
+      </button>
+      <button class="tabbar-item admin-tab" data-view-target="admin" hidden>
+        <span class="tabbar-icon">⚙️</span>
+        <span>管理后台</span>
       </button>
     </nav>
 
