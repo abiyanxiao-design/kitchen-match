@@ -53,13 +53,12 @@
 
     <div class="mobile-topbar shell app-shell">
       <div class="topbar-row">
-        <div>
-          <p class="topbar-label">今天撞菜</p>
-          <strong class="topbar-title">今晚吃什么</strong>
+        <div class="topbar-copy">
+          <strong class="topbar-title">每日厨房</strong>
+          <p class="topbar-status" id="updates-badge">最近有人更新了餐桌</p>
         </div>
         <div class="topbar-actions">
-          <div class="topbar-badge" id="updates-badge">0 人已更新</div>
-          <button class="ghost-link" id="logout-button">退出</button>
+          <button class="ghost-link topbar-my-button" id="topbar-my-button">👤 我的</button>
         </div>
       </div>
     </div>
@@ -78,19 +77,7 @@
     </section>
 
     <main class="shell app-shell">
-      <section class="nav-strip">
-        <button class="nav-chip active" data-view-target="home">首页</button>
-        <button class="nav-chip" data-view-target="community">社区</button>
-        <button class="nav-chip" data-view-target="my">我的</button>
-      </section>
-
       <section class="view active" data-view="home">
-        <article class="card home-hero-card">
-          <p class="section-kicker">Daily Kitchen</p>
-          <h1>每日厨房</h1>
-          <p class="home-subtitle">看看大家今天吃了什么，也记录你自己的这一顿。</p>
-        </article>
-
         <article class="card home-latest-card">
           <div class="section-head compact-head">
             <div>
@@ -191,11 +178,12 @@
       </section>
 
       <section class="view" data-view="my">
-        <div class="section-head">
+        <div class="section-head my-head">
           <div>
             <p class="section-kicker">我的记录</p>
             <h2>这里会留下你最近做过的菜</h2>
           </div>
+          <button class="ghost-link my-logout-button" id="my-logout-button" type="button">退出登录</button>
         </div>
 
         <div class="profile-layout">

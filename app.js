@@ -16,9 +16,8 @@ const showLoginButton = document.getElementById("show-login");
 const showRegisterButton = document.getElementById("show-register");
 const closeAuthButton = document.getElementById("close-auth");
 const authMessage = document.getElementById("auth-message");
-const logoutButton = document.getElementById("logout-button");
-
-const topbarLabel = document.querySelector(".topbar-label");
+const myLogoutButton = document.getElementById("my-logout-button");
+const topbarMyButton = document.getElementById("topbar-my-button");
 const topbarTitle = document.querySelector(".topbar-title");
 const updatesBadge = document.getElementById("updates-badge");
 
@@ -225,7 +224,9 @@ async function registerServiceWorker() {
 
 function setGuestMode(isGuest) {
   document.body.classList.toggle("guest-mode", isGuest);
-  logoutButton.hidden = isGuest;
+  if (myLogoutButton) {
+    myLogoutButton.hidden = isGuest;
+  }
 }
 
 function showAuthScreen(mode = "login", message = "") {
@@ -269,15 +270,11 @@ function setAuthMode(mode) {
 function activateView(name) {
   state.activeView = name;
   document.body.dataset.activeView = name;
-  if (topbarLabel && topbarTitle) {
-    const topbarMap = {
-      home: ["每日厨房", "看看今天吃了什么"],
-      community: ["社区", "今天大家都在吃什么"],
-      my: ["我的", "做饭记录"],
-    };
-    const [label, title] = topbarMap[name] || topbarMap.home;
-    topbarLabel.textContent = label;
-    topbarTitle.textContent = title;
+  if (topbarTitle) {
+    topbarTitle.textContent = "每日厨房";
+  }
+  if (topbarMyButton) {
+    topbarMyButton.classList.toggle("active", name === "my");
   }
   viewButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.viewTarget === name);
@@ -1229,7 +1226,16 @@ if (dismissInstallButton) {
 }
 loginForm.addEventListener("submit", submitLogin);
 registerForm.addEventListener("submit", submitRegister);
-logoutButton.addEventListener("click", logout);
+if (myLogoutButton) {
+  myLogoutButton.addEventListener("click", logout);
+}
+
+if (topbarMyButton) {
+  topbarMyButton.addEventListener("click", () => {
+    activateView("my");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
 
 viewButtons.forEach((button) => {
   button.addEventListener("click", async () => {
