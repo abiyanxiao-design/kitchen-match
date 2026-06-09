@@ -1577,13 +1577,40 @@ def logout():
 @app.post("/api/posts")
 def create_post():
     payload = flask_request.get_json(force=True, silent=True) or {}
-    dish_input = (payload.get("dish") or "").strip()
-    note = (payload.get("note") or "").strip()
-    photo_data_url = payload.get("photo_data_url")
-    dishes = split_dishes(dish_input)
+    raw_posts = payload.get("posts")
+    post_items = []
 
-    if not dishes:
-        return jsonify({"error": "请先写下今天做了什么"}), 400
+    if isinstance(raw_posts, list) and raw_posts:
+        for item in raw_posts:
+            if not isinstance(item, dict):
+                continue
+            dish = (item.get("dish") or "").strip()
+            note = (item.get("note") or "").strip()
+            photo_data_url = item.get("photo_data_url")
+            if not dish:
+                return jsonify({"error": "每张照片都要先写好菜名"}), 400
+            post_items.append({
+                "dish": dish,
+                "note": note,
+                "photo_data_url": photo_data_url,
+            })
+    else:
+        dish_input = (payload.get("dish") or "").strip()
+        note = (payload.get("note") or "").strip()
+        photo_data_url = payload.get("photo_data_url")
+        dishes = split_dishes(dish_input)
+
+        if not dishes:
+            return jsonify({"error": "请先写下今天做了什么"}), 400
+
+        post_items = [
+            {
+                "dish": dish,
+                "note": note,
+                "photo_data_url": photo_data_url,
+            }
+            for dish in dishes
+        ]
 
     with pg_connection() as connection:
         user = current_user(connection)
@@ -1591,23 +1618,30 @@ def create_post():
             return jsonify({"error": "登录状态过期，请重新登录"}), 401
         dish_dictionary = load_dish_dictionary(connection)
 
-        photo_path = None
-        photo_public_url = None
-        warning = None
-        created_at = now_utc()
-        if photo_data_url:
-            try:
-                photo_path, photo_public_url = upload_to_storage(user["id"], photo_data_url)
-            except Exception as exc:
-                warning = to_post_upload_warning(str(exc))
+        warnings = []
+        created_posts = []
 
         try:
             with connection.cursor() as cursor:
-                for dish in dishes:
+                for item in post_items:
+                    dish = item["dish"]
+                    note = item["note"]
+                    photo_data_url = item.get("photo_data_url")
+                    photo_path = None
+                    photo_public_url = None
+                    created_at = now_utc()
+
+                    if photo_data_url:
+                        try:
+                            photo_path, photo_public_url = upload_to_storage(user["id"], photo_data_url)
+                        except Exception as exc:
+                            warnings.append(f"{dish}：{to_post_upload_warning(str(exc))}")
+
                     cursor.execute(
                         """
                         insert into posts (user_id, dish, note, photo_path, photo_public_url, category, created_at)
                         values (%s, %s, %s, %s, %s, %s, %s)
+                        returning id
                         """,
                         (
                             user["id"],
@@ -1619,16 +1653,26 @@ def create_post():
                             created_at,
                         ),
                     )
+                    created_row = cursor.fetchone()
+                    created_posts.append({
+                        "id": created_row["id"] if created_row else None,
+                        "dish": dish,
+                        "note": note,
+                        "photo_public_url": photo_public_url,
+                        "cuisine_info": build_cuisine_info(dish, dish_dictionary),
+                    })
             connection.commit()
         except Exception:
             return jsonify({"error": "服务器暂时开小差了，请稍后再试"}), 500
+
     return jsonify({
         "ok": True,
-        "warning": warning,
-        "created_count": len(dishes),
+        "warning": "；".join(warnings) if warnings else None,
+        "created_count": len(post_items),
+        "created_posts": created_posts,
         "created_cuisine_info": [
-            {"dish": dish, "cuisine_info": build_cuisine_info(dish, dish_dictionary)}
-            for dish in dishes[:2]
+            {"dish": item["dish"], "cuisine_info": build_cuisine_info(item["dish"], dish_dictionary)}
+            for item in post_items[:2]
         ],
     })
 
