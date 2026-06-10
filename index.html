@@ -285,6 +285,32 @@
       </div>
     </template>
 
+    <section class="edit-post-modal" id="edit-post-modal" hidden>
+      <div class="edit-post-card card">
+        <button class="ghost-link edit-post-close" id="close-edit-post">取消</button>
+        <p class="section-kicker">修改记录</p>
+        <h2 class="edit-post-title">重新填一下</h2>
+        <form id="edit-post-form">
+          <input type="hidden" id="edit-post-id" />
+          <label class="edit-post-label" for="edit-dish-name">菜名</label>
+          <textarea id="edit-dish-name" class="edit-dish-input" placeholder="菜名" required></textarea>
+          <label class="edit-post-label" for="edit-post-note">备注（可选）</label>
+          <textarea id="edit-post-note" class="edit-note-input" placeholder="随便写几句"></textarea>
+          <button class="primary-button" type="submit">保存修改</button>
+        </form>
+        <p class="edit-post-message" id="edit-post-message"></p>
+      </div>
+    </section>
+
+    <section class="user-posts-modal" id="user-posts-modal" hidden>
+      <div class="user-posts-card card">
+        <button class="ghost-link user-posts-close" id="close-user-posts">关闭</button>
+        <p class="section-kicker" id="user-posts-kicker">TA 最近做了什么</p>
+        <h2 class="user-posts-title" id="user-posts-name"></h2>
+        <div class="user-posts-list" id="user-posts-list"></div>
+      </div>
+    </section>
+
     <script src="./app.js?v=20260608-v1"></script>
   </body>
 </html>

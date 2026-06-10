@@ -1246,9 +1246,12 @@ def build_profile(connection, user):
 
     timeline = [
         {
+            "id": row["id"],
+            "user_id": row["user_id"],
             "day": local_day_label(row["created_at"]),
             "dish": row["dish"],
             "note": row["note"] or "今天记下了这顿饭。",
+            "raw_note": row["note"] or "",
             "photo_public_url": row.get("photo_public_url"),
             "cuisine_info": build_cuisine_info(row["dish"], dish_dictionary),
         }
@@ -1259,21 +1262,24 @@ def build_profile(connection, user):
     for row in weekly_other:
         if row["category"] != top_category:
             continue
-        related_counts.setdefault(row["display_name"], 0)
-        related_counts[row["display_name"]] += 1
+        uid = row["user_id"]
+        if uid not in related_counts:
+            related_counts[uid] = {"name": row["display_name"], "count": 0}
+        related_counts[uid]["count"] += 1
 
     relationships = [
-        {"name": name, "meta": f"这周已经和你撞了 {count} 次 {top_category}。"}
-        for name, count in sorted(related_counts.items(), key=lambda item: item[1], reverse=True)[:3]
+        {"user_id": uid, "name": data["name"], "meta": f"这周已经和你撞了 {data['count']} 次 {top_category}。"}
+        for uid, data in sorted(related_counts.items(), key=lambda item: item[1]["count"], reverse=True)[:3]
     ]
 
     next_up = []
     seen = set()
     for row in monthly_other:
-        if row["display_name"] in seen:
+        if row["user_id"] in seen:
             continue
-        seen.add(row["display_name"])
+        seen.add(row["user_id"])
         next_up.append({
+            "user_id": row["user_id"],
             "name": row["display_name"],
             "meta": f"最近做了 {row['dish']}，晚饭节奏和你挺像。",
         })
@@ -1677,6 +1683,65 @@ def create_post():
     })
 
 
+def delete_post():
+    payload = flask_request.get_json(force=True, silent=True) or {}
+    try:
+        post_id = int(payload.get("post_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "找不到这道菜"}), 400
+
+    with pg_connection() as connection:
+        user = current_user(connection)
+        if not user:
+            return jsonify({"error": "请先登录"}), 401
+        with connection.cursor() as cursor:
+            cursor.execute("select id, user_id from posts where id = %s", (post_id,))
+            post = cursor.fetchone()
+        if not post:
+            return jsonify({"error": "这道菜已经不在了"}), 404
+        if post["user_id"] != user["id"]:
+            return jsonify({"error": "只能删除自己的记录"}), 403
+        with connection.cursor() as cursor:
+            cursor.execute("delete from posts where id = %s", (post_id,))
+        connection.commit()
+    return jsonify({"ok": True, "post_id": post_id})
+
+
+def update_post():
+    payload = flask_request.get_json(force=True, silent=True) or {}
+    try:
+        post_id = int(payload.get("post_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "找不到这道菜"}), 400
+
+    dish = (payload.get("dish") or "").strip()
+    note = (payload.get("note") or "").strip()
+
+    if not dish:
+        return jsonify({"error": "请先填写菜名"}), 400
+
+    with pg_connection() as connection:
+        user = current_user(connection)
+        if not user:
+            return jsonify({"error": "请先登录"}), 401
+        with connection.cursor() as cursor:
+            cursor.execute("select id, user_id from posts where id = %s", (post_id,))
+            post = cursor.fetchone()
+        if not post:
+            return jsonify({"error": "这道菜已经不在了"}), 404
+        if post["user_id"] != user["id"]:
+            return jsonify({"error": "只能编辑自己的记录"}), 403
+        dish_dictionary = load_dish_dictionary(connection)
+        new_category = infer_category(dish, note, dish_dictionary)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "update posts set dish = %s, note = %s, category = %s where id = %s",
+                (dish, note, new_category, post_id),
+            )
+        connection.commit()
+    return jsonify({"ok": True, "post_id": post_id})
+
+
 @app.post("/like_post")
 @app.post("/api/like_post")
 def like_post():
@@ -1722,6 +1787,19 @@ def profile():
         if not user:
             return jsonify({"error": "请先登录"}), 401
         return jsonify(build_profile(connection, user))
+
+
+@app.delete("/posts")
+@app.delete("/api/posts")
+def delete_post_route():
+    return delete_post()
+
+
+@app.patch("/posts")
+@app.patch("/api/posts")
+def update_post_route():
+    return update_post()
+
 
 if os.environ.get("SUPABASE_DB_URL"):
     ensure_schema()

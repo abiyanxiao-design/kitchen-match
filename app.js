@@ -63,6 +63,19 @@ const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
 const MAX_MULTI_PHOTO_COUNT = 6;
 const quickPostCard = document.getElementById("quick-post");
 
+const userPostsModal = document.getElementById("user-posts-modal");
+const userPostsName = document.getElementById("user-posts-name");
+const userPostsList = document.getElementById("user-posts-list");
+const closeUserPostsButton = document.getElementById("close-user-posts");
+
+const editPostModal = document.getElementById("edit-post-modal");
+const editPostForm = document.getElementById("edit-post-form");
+const editPostId = document.getElementById("edit-post-id");
+const editDishName = document.getElementById("edit-dish-name");
+const editPostNote = document.getElementById("edit-post-note");
+const editPostMessage = document.getElementById("edit-post-message");
+const closeEditPostButton = document.getElementById("close-edit-post");
+
 let toastTimerId = null;
 let deferredInstallPrompt = null;
 let installBanner = null;
@@ -269,7 +282,60 @@ function clonePersonCard(person) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.querySelector(".name").textContent = person.name;
   node.querySelector(".meta").textContent = person.meta;
+  if (person.user_id) {
+    node.dataset.userId = person.user_id;
+    node.dataset.userName = person.name;
+  }
   return node;
+}
+
+function openUserPosts(userId, userName) {
+  userPostsName.textContent = userName;
+  userPostsList.innerHTML = "";
+
+  const allPosts = [
+    ...(state.publicFeed?.recent_posts || []),
+    ...(state.publicFeed?.today_posts || []),
+  ];
+  const seen = new Set();
+  const userPosts = allPosts.filter((p) => {
+    if (p.user_id !== userId || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+  userPosts.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+
+  if (!userPosts.length) {
+    userPostsList.innerHTML = `<p class="user-posts-empty">暂时看不到 TA 最近的记录。</p>`;
+  } else {
+    userPosts.slice(0, 10).forEach((post) => {
+      const item = document.createElement("div");
+      item.className = "user-post-item";
+      item.innerHTML = `
+        <span class="user-post-dish">${escapeHtml(post.dish)}</span>
+        ${post.note ? `<p class="user-post-note">${escapeHtml(post.note)}</p>` : ""}
+        <p class="user-post-day">${local_day_label_js(post.created_at)}</p>
+      `;
+      userPostsList.appendChild(item);
+    });
+  }
+
+  userPostsModal.hidden = false;
+}
+
+function local_day_label_js(isoString) {
+  if (!isoString) return "最近";
+  try {
+    const created = new Date(isoString);
+    const now = new Date();
+    const days = Math.floor((now - created) / 86400000);
+    if (days <= 0) return "今天";
+    if (days === 1) return "昨天";
+    if (days < 7) return `${days} 天前`;
+    return `${created.getMonth() + 1}-${created.getDate()}`;
+  } catch (_) {
+    return "最近";
+  }
 }
 
 function setAuthMode(mode) {
@@ -699,6 +765,65 @@ async function handleLikeClick(postId, button = null) {
       return;
     }
     showToast(error.message || "点赞失败，请稍后再试", "warning");
+  }
+}
+
+async function deletePost(postId) {
+  try {
+    await fetchJson("/api/posts", {
+      method: "DELETE",
+      body: JSON.stringify({ post_id: postId }),
+    });
+    showToast("已删除", "success");
+    const [dashboard, profile] = await Promise.all([
+      fetchJson("/api/dashboard").catch(() => null),
+      fetchJson("/api/profile").catch(() => null),
+    ]);
+    if (dashboard) state.dashboard = dashboard;
+    if (profile) state.profile = profile;
+    rerenderVisibleViews();
+  } catch (error) {
+    showToast(error.message || "删除失败，请稍后再试", "warning");
+  }
+}
+
+function openEditPost(postId, dish, note) {
+  editPostId.value = postId;
+  editDishName.value = dish;
+  editPostNote.value = note;
+  editPostMessage.textContent = "";
+  editPostModal.hidden = false;
+  editDishName.focus();
+}
+
+function closeEditPost() {
+  editPostModal.hidden = true;
+}
+
+async function saveEditPost(postId, dish, note) {
+  editPostMessage.textContent = "";
+  const submitBtn = editPostForm.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "保存中...";
+  try {
+    await fetchJson("/api/posts", {
+      method: "PATCH",
+      body: JSON.stringify({ post_id: postId, dish, note }),
+    });
+    closeEditPost();
+    showToast("已更新", "success");
+    const [dashboard, profile] = await Promise.all([
+      fetchJson("/api/dashboard").catch(() => null),
+      fetchJson("/api/profile").catch(() => null),
+    ]);
+    if (dashboard) state.dashboard = dashboard;
+    if (profile) state.profile = profile;
+    rerenderVisibleViews();
+  } catch (error) {
+    editPostMessage.textContent = error.message || "保存失败，请稍后再试";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "保存修改";
   }
 }
 
@@ -1409,10 +1534,16 @@ function renderProfile() {
     const imageMarkup = item.photo_public_url
       ? `<div class="timeline-thumb">${renderPreviewableImage(item.photo_public_url, item.dish)}</div>`
       : "";
+    const ownerActions = item.id
+      ? `<span class="timeline-owner-actions">
+          <button class="timeline-action-btn edit-btn" data-post-id="${item.id}" data-dish="${escapeHtml(item.dish)}" data-note="${escapeHtml(item.raw_note ?? "")}">编辑</button>
+          <button class="timeline-action-btn delete-btn" data-post-id="${item.id}">删除</button>
+        </span>`
+      : "";
     card.innerHTML = `
       <div class="timeline-day">${escapeHtml(item.day)}</div>
       <div class="timeline-body">
-        <strong>${escapeHtml(item.dish)}</strong>
+        <strong>${escapeHtml(item.dish)}${ownerActions}</strong>
         ${renderCuisineInfoBadge(item.cuisine_info)}
         ${imageMarkup}
         <p>${escapeHtml(item.note)}</p>
@@ -1868,6 +1999,54 @@ document.addEventListener("click", (event) => {
     }
     return;
   }
+
+  const personCard = target.closest(".person-card[data-user-id]");
+  if (personCard instanceof HTMLElement) {
+    event.preventDefault();
+    event.stopPropagation();
+    openUserPosts(Number(personCard.dataset.userId), personCard.dataset.userName || "TA");
+    return;
+  }
+
+  const editBtn = target.closest(".edit-btn[data-post-id]");
+  if (editBtn instanceof HTMLElement) {
+    event.preventDefault();
+    event.stopPropagation();
+    openEditPost(
+      Number(editBtn.dataset.postId),
+      editBtn.dataset.dish || "",
+      editBtn.dataset.note || "",
+    );
+    return;
+  }
+
+  const deleteBtn = target.closest(".delete-btn[data-post-id]");
+  if (deleteBtn instanceof HTMLElement) {
+    event.preventDefault();
+    event.stopPropagation();
+    const postId = Number(deleteBtn.dataset.postId);
+    if (window.confirm("确定删除这道菜的记录吗？")) {
+      deletePost(postId);
+    }
+    return;
+  }
+});
+
+closeUserPostsButton.addEventListener("click", () => { userPostsModal.hidden = true; });
+userPostsModal.addEventListener("click", (event) => {
+  if (event.target === userPostsModal) userPostsModal.hidden = true;
+});
+
+closeEditPostButton.addEventListener("click", closeEditPost);
+editPostModal.addEventListener("click", (event) => {
+  if (event.target === editPostModal) closeEditPost();
+});
+editPostForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const postId = Number(editPostId.value);
+  const dish = editDishName.value.trim();
+  const note = editPostNote.value.trim();
+  saveEditPost(postId, dish, note);
 });
 
 async function renderAdmin() {
