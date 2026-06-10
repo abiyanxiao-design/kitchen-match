@@ -6,6 +6,7 @@ const state = {
   authMode: "login",
   activeView: "home",
   photoDataUrl: null,
+  photoEntries: [],
   refreshIntervalId: null,
   pendingLikePostIds: new Set(),
 };
@@ -51,12 +52,15 @@ const dishName = document.getElementById("dish-name");
 const dishNote = document.getElementById("dish-note");
 const dishPhoto = document.getElementById("dish-photo");
 const photoPreview = document.getElementById("photo-preview");
+const photoEntryList = document.getElementById("photo-entry-list");
+const photoModeHint = document.getElementById("photo-mode-hint");
 const postButton = document.getElementById("post-card");
 const MAX_UPLOAD_IMAGE_EDGE = 1200;
 const JPEG_UPLOAD_QUALITY = 0.72;
 const SECOND_PASS_MAX_EDGE = 1000;
 const SECOND_PASS_JPEG_QUALITY = 0.65;
 const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
+const MAX_MULTI_PHOTO_COUNT = 6;
 const quickPostCard = document.getElementById("quick-post");
 
 const userPostsModal = document.getElementById("user-posts-modal");
@@ -830,6 +834,73 @@ function countSubmittedDishes(rawValue) {
     .filter(Boolean).length;
 }
 
+function hasPhotoEntries() {
+  return Array.isArray(state.photoEntries) && state.photoEntries.length > 0;
+}
+
+function setPhotoPreviewEmpty(message = "照片可选，不传也可以") {
+  photoPreview.classList.add("empty");
+  photoPreview.innerHTML = message;
+}
+
+function renderPhotoEntries() {
+  if (!photoEntryList) {
+    return;
+  }
+
+  if (!hasPhotoEntries()) {
+    photoEntryList.hidden = true;
+    photoEntryList.innerHTML = "";
+    setPhotoPreviewEmpty("照片可选，不传也可以");
+    if (photoModeHint) {
+      photoModeHint.textContent = "不传图时，继续用上面文字一次写多道菜；传了图后，请在每张图下面分别写菜名。";
+    }
+    return;
+  }
+
+  photoPreview.classList.remove("empty");
+  photoPreview.innerHTML = `已选 ${state.photoEntries.length} 张照片，请在下面分别写菜名。`;
+  photoEntryList.hidden = false;
+  photoEntryList.innerHTML = state.photoEntries.map((entry, index) => `
+    <article class="photo-entry-card" data-photo-entry-id="${entry.id}">
+      <div class="photo-entry-thumb">
+        <img src="${entry.dataUrl}" alt="第 ${index + 1} 张菜图预览" />
+      </div>
+      <div class="photo-entry-body">
+        <p class="photo-entry-title">第 ${index + 1} 张照片</p>
+        <input
+          class="photo-entry-input"
+          type="text"
+          data-photo-field="dish"
+          data-photo-entry-id="${entry.id}"
+          value="${escapeHtml(entry.dish || "")}"
+          placeholder="给这张照片写菜名"
+        />
+        <textarea
+          class="photo-entry-textarea"
+          rows="2"
+          data-photo-field="note"
+          data-photo-entry-id="${entry.id}"
+          placeholder="可选：这道菜的小备注"
+        >${escapeHtml(entry.note || "")}</textarea>
+      </div>
+    </article>
+  `).join("");
+
+  if (photoModeHint) {
+    photoModeHint.textContent = "现在是多图多菜模式：每张图旁边写自己的菜名和备注。";
+  }
+}
+
+function resetPhotoEntries() {
+  state.photoDataUrl = null;
+  state.photoEntries = [];
+  if (dishPhoto) {
+    dishPhoto.value = "";
+  }
+  renderPhotoEntries();
+}
+
 function setPostButtonLoading(isLoading, text = "看看今天和谁撞菜") {
   postButton.disabled = isLoading;
   postButton.classList.toggle("is-loading", isLoading);
@@ -1506,32 +1577,70 @@ function renderProfile() {
   });
 }
 
-async function updatePhotoPreview(file) {
-  if (!file) {
-    state.photoDataUrl = null;
-    photoPreview.classList.add("empty");
-    photoPreview.innerHTML = "照片可选，不传也可以";
+async function updatePhotoPreview(files) {
+  const selectedFiles = Array.from(files || []).filter(Boolean);
+  if (!selectedFiles.length) {
+    resetPhotoEntries();
     return;
   }
 
-  photoPreview.classList.add("empty");
-  photoPreview.innerHTML = "正在准备照片...";
+  if (selectedFiles.length > MAX_MULTI_PHOTO_COUNT) {
+    resetPhotoEntries();
+    alert(`一次最多记录 ${MAX_MULTI_PHOTO_COUNT} 张照片。`);
+    return;
+  }
+
+  setPhotoPreviewEmpty("正在准备照片...");
+  if (photoEntryList) {
+    photoEntryList.hidden = true;
+    photoEntryList.innerHTML = "";
+  }
 
   try {
-    console.log(`[Kitchen Match] original photo size: ${file.size} bytes`);
-    const compressed = await compressImageFile(file);
-    console.log(`[Kitchen Match] compressed photo size: ${compressed.size} bytes`);
-    state.photoDataUrl = compressed.dataUrl;
-    photoPreview.classList.remove("empty");
-    photoPreview.innerHTML = `<img src="${compressed.dataUrl}" alt="你上传的菜图预览" />`;
-    if (dataUrlByteLength(compressed.dataUrl) > MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS) {
-      console.warn("[Kitchen Match] compressed photo is still larger than target threshold");
+    if (selectedFiles.length === 1) {
+      const [file] = selectedFiles;
+      console.log(`[Kitchen Match] original photo size: ${file.size} bytes`);
+      const compressed = await compressImageFile(file);
+      console.log(`[Kitchen Match] compressed photo size: ${compressed.size} bytes`);
+      state.photoDataUrl = compressed.dataUrl;
+      state.photoEntries = [];
+      photoPreview.classList.remove("empty");
+      photoPreview.innerHTML = `<img src="${compressed.dataUrl}" alt="你上传的菜图预览" />`;
+      if (photoEntryList) {
+        photoEntryList.hidden = true;
+        photoEntryList.innerHTML = "";
+      }
+      if (photoModeHint) {
+        photoModeHint.textContent = "现在还是单图模式：上面文字里可以继续一次写多道菜，这张图会共用。";
+      }
+      if (dataUrlByteLength(compressed.dataUrl) > MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS) {
+        console.warn("[Kitchen Match] compressed photo is still larger than target threshold");
+      }
+      return;
     }
-  } catch (_error) {
+
+    const nextEntries = [];
+    for (const [index, file] of selectedFiles.entries()) {
+      console.log(`[Kitchen Match] original photo size: ${file.size} bytes`);
+      const compressed = await compressImageFile(file);
+      console.log(`[Kitchen Match] compressed photo size: ${compressed.size} bytes`);
+      if (dataUrlByteLength(compressed.dataUrl) > MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS) {
+        console.warn("[Kitchen Match] compressed photo is still larger than target threshold");
+      }
+      nextEntries.push({
+        id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        dish: "",
+        note: "",
+        dataUrl: compressed.dataUrl,
+        size: compressed.size,
+      });
+    }
+
     state.photoDataUrl = null;
-    dishPhoto.value = "";
-    photoPreview.classList.add("empty");
-    photoPreview.innerHTML = "照片可选，不传也可以";
+    state.photoEntries = nextEntries;
+    renderPhotoEntries();
+  } catch (_error) {
+    resetPhotoEntries();
     alert("图片处理失败，请换一张照片");
   }
 }
@@ -1677,32 +1786,57 @@ async function postKitchenCard() {
     showAuthScreen("register", "想发自己的晚饭时，先登录或注册。");
     return;
   }
+
+  const multiPhotoMode = hasPhotoEntries();
   const dish = dishName.value.trim();
   const note = dishNote.value.trim();
-  const submittedDishes = parseSubmittedDishes(dish);
-  if (!dish) {
-    dishName.focus();
-    alert("菜名不能为空");
-    return;
+  let submittedDishes = [];
+  let requestBody = null;
+
+  if (multiPhotoMode) {
+    const invalidIndex = state.photoEntries.findIndex((entry) => !(entry.dish || "").trim());
+    if (invalidIndex >= 0) {
+      alert(`请给第 ${invalidIndex + 1} 张照片写个菜名。`);
+      const targetInput = photoEntryList?.querySelector(`[data-photo-field="dish"][data-photo-entry-id="${state.photoEntries[invalidIndex].id}"]`);
+      if (targetInput instanceof HTMLElement) {
+        targetInput.focus();
+      }
+      return;
+    }
+    submittedDishes = state.photoEntries.map((entry) => entry.dish.trim()).filter(Boolean);
+    requestBody = {
+      posts: state.photoEntries.map((entry) => ({
+        dish: entry.dish.trim(),
+        note: (entry.note || "").trim(),
+        photo_data_url: entry.dataUrl,
+      })),
+    };
+  } else {
+    submittedDishes = parseSubmittedDishes(dish);
+    if (!dish) {
+      dishName.focus();
+      alert("菜名不能为空");
+      return;
+    }
+    requestBody = {
+      dish,
+      note,
+      photo_data_url: state.photoDataUrl,
+    };
   }
 
   try {
     setPostButtonLoading(true, "正在看看今天谁和你撞菜…");
-    const submittedDishCount = countSubmittedDishes(dish);
+    const submittedDishCount = multiPhotoMode ? submittedDishes.length : countSubmittedDishes(dish);
     const payload = await fetchJson("/api/posts", {
       method: "POST",
-      body: JSON.stringify({
-        dish,
-        note,
-        photo_data_url: state.photoDataUrl,
-      }),
+      body: JSON.stringify(requestBody),
     });
     const createdCount = payload.created_count || submittedDishCount || submittedDishes.length || 1;
     showToast(`已记录 ${createdCount} 道菜，正在帮你看看和谁撞菜。`, "success");
     dishName.value = "";
     dishNote.value = "";
-    dishPhoto.value = "";
-    await updatePhotoPreview(null);
+    resetPhotoEntries();
     setQuickPostVisible(false);
     await refreshAppData();
     await refreshPublicFeedData().catch(() => {});
@@ -1816,9 +1950,27 @@ document.getElementById("fill-demo").addEventListener("click", () => {
 });
 
 dishPhoto.addEventListener("change", (event) => {
-  const [file] = event.target.files;
-  updatePhotoPreview(file);
+  updatePhotoPreview(event.target.files);
 });
+
+if (photoEntryList) {
+  photoEntryList.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    const entryId = target.dataset.photoEntryId;
+    const field = target.dataset.photoField;
+    if (!entryId || !field) {
+      return;
+    }
+    const entry = state.photoEntries.find((item) => item.id === entryId);
+    if (!entry) {
+      return;
+    }
+    entry[field] = target.value;
+  });
+}
 
 document.addEventListener("click", (event) => {
   const target = event.target;

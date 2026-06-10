@@ -101,9 +101,11 @@
               placeholder="可一次写多个菜&#10;比如：&#10;辣椒炒肉&#10;番茄炒蛋&#10;炒青菜&#10;或用逗号隔开"
             ></textarea>
             <div class="photo-upload-box">
-              <label class="upload-button" for="dish-photo">加一张照片</label>
-              <input id="dish-photo" type="file" accept="image/*" hidden />
+              <label class="upload-button" for="dish-photo">加照片，可一次选多张</label>
+              <input id="dish-photo" type="file" accept="image/*" multiple hidden />
+              <p class="photo-mode-hint" id="photo-mode-hint">不传图时，继续用上面文字一次写多道菜；传了图后，请在每张图下面分别写菜名。</p>
               <div class="photo-preview empty" id="photo-preview">照片可选，不传也可以</div>
+              <div class="photo-entry-list" id="photo-entry-list" hidden></div>
             </div>
             <textarea
               id="dish-note"
