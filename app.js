@@ -59,6 +59,11 @@ const SECOND_PASS_JPEG_QUALITY = 0.65;
 const MAX_UPLOAD_BYTES_BEFORE_SECOND_PASS = 1.8 * 1024 * 1024;
 const quickPostCard = document.getElementById("quick-post");
 
+const userPostsModal = document.getElementById("user-posts-modal");
+const userPostsName = document.getElementById("user-posts-name");
+const userPostsList = document.getElementById("user-posts-list");
+const closeUserPostsButton = document.getElementById("close-user-posts");
+
 const editPostModal = document.getElementById("edit-post-modal");
 const editPostForm = document.getElementById("edit-post-form");
 const editPostId = document.getElementById("edit-post-id");
@@ -273,7 +278,60 @@ function clonePersonCard(person) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.querySelector(".name").textContent = person.name;
   node.querySelector(".meta").textContent = person.meta;
+  if (person.user_id) {
+    node.dataset.userId = person.user_id;
+    node.dataset.userName = person.name;
+  }
   return node;
+}
+
+function openUserPosts(userId, userName) {
+  userPostsName.textContent = userName;
+  userPostsList.innerHTML = "";
+
+  const allPosts = [
+    ...(state.publicFeed?.recent_posts || []),
+    ...(state.publicFeed?.today_posts || []),
+  ];
+  const seen = new Set();
+  const userPosts = allPosts.filter((p) => {
+    if (p.user_id !== userId || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+  userPosts.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+
+  if (!userPosts.length) {
+    userPostsList.innerHTML = `<p class="user-posts-empty">暂时看不到 TA 最近的记录。</p>`;
+  } else {
+    userPosts.slice(0, 10).forEach((post) => {
+      const item = document.createElement("div");
+      item.className = "user-post-item";
+      item.innerHTML = `
+        <span class="user-post-dish">${escapeHtml(post.dish)}</span>
+        ${post.note ? `<p class="user-post-note">${escapeHtml(post.note)}</p>` : ""}
+        <p class="user-post-day">${local_day_label_js(post.created_at)}</p>
+      `;
+      userPostsList.appendChild(item);
+    });
+  }
+
+  userPostsModal.hidden = false;
+}
+
+function local_day_label_js(isoString) {
+  if (!isoString) return "最近";
+  try {
+    const created = new Date(isoString);
+    const now = new Date();
+    const days = Math.floor((now - created) / 86400000);
+    if (days <= 0) return "今天";
+    if (days === 1) return "昨天";
+    if (days < 7) return `${days} 天前`;
+    return `${created.getMonth() + 1}-${created.getDate()}`;
+  } catch (_) {
+    return "最近";
+  }
 }
 
 function setAuthMode(mode) {
@@ -1790,6 +1848,14 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const personCard = target.closest(".person-card[data-user-id]");
+  if (personCard instanceof HTMLElement) {
+    event.preventDefault();
+    event.stopPropagation();
+    openUserPosts(Number(personCard.dataset.userId), personCard.dataset.userName || "TA");
+    return;
+  }
+
   const editBtn = target.closest(".edit-btn[data-post-id]");
   if (editBtn instanceof HTMLElement) {
     event.preventDefault();
@@ -1812,6 +1878,11 @@ document.addEventListener("click", (event) => {
     }
     return;
   }
+});
+
+closeUserPostsButton.addEventListener("click", () => { userPostsModal.hidden = true; });
+userPostsModal.addEventListener("click", (event) => {
+  if (event.target === userPostsModal) userPostsModal.hidden = true;
 });
 
 closeEditPostButton.addEventListener("click", closeEditPost);

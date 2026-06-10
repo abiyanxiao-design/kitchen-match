@@ -1262,21 +1262,24 @@ def build_profile(connection, user):
     for row in weekly_other:
         if row["category"] != top_category:
             continue
-        related_counts.setdefault(row["display_name"], 0)
-        related_counts[row["display_name"]] += 1
+        uid = row["user_id"]
+        if uid not in related_counts:
+            related_counts[uid] = {"name": row["display_name"], "count": 0}
+        related_counts[uid]["count"] += 1
 
     relationships = [
-        {"name": name, "meta": f"这周已经和你撞了 {count} 次 {top_category}。"}
-        for name, count in sorted(related_counts.items(), key=lambda item: item[1], reverse=True)[:3]
+        {"user_id": uid, "name": data["name"], "meta": f"这周已经和你撞了 {data['count']} 次 {top_category}。"}
+        for uid, data in sorted(related_counts.items(), key=lambda item: item[1]["count"], reverse=True)[:3]
     ]
 
     next_up = []
     seen = set()
     for row in monthly_other:
-        if row["display_name"] in seen:
+        if row["user_id"] in seen:
             continue
-        seen.add(row["display_name"])
+        seen.add(row["user_id"])
         next_up.append({
+            "user_id": row["user_id"],
             "name": row["display_name"],
             "meta": f"最近做了 {row['dish']}，晚饭节奏和你挺像。",
         })
